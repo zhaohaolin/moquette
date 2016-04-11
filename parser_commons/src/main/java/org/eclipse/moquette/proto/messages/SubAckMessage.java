@@ -24,17 +24,17 @@ import java.util.List;
  */
 public class SubAckMessage extends MessageIDMessage {
 	
-	List<QOSType>	m_types	= new ArrayList<QOSType>();
+	List<QOSType>	types	= new ArrayList<QOSType>();
 	
 	public SubAckMessage() {
 		messageType = AbstractMessage.SUBACK;
 	}
 	
 	public List<QOSType> types() {
-		return m_types;
+		return types;
 	}
 	
 	public void addType(QOSType type) {
-		m_types.add(type);
+		types.add(type);
 	}
 }
