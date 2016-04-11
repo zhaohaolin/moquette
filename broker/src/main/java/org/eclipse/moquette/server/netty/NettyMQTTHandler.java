@@ -40,12 +40,12 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 	
 	private static final Logger		LOG	= LoggerFactory
 												.getLogger(NettyMQTTHandler.class);
-	private IMessaging				messaging;
+	// private IMessaging messaging;
 	private final ProtocolProcessor	processor;
 	
-	private NettyMQTTHandler() {
-		this.processor = null;
-	}
+	// private NettyMQTTHandler() {
+	// this.processor = null;
+	// }
 	
 	public NettyMQTTHandler(ProtocolProcessor processor) {
 		this.processor = processor;

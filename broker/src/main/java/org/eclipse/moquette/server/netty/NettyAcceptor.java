@@ -34,9 +34,13 @@ import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
+import io.netty.util.internal.logging.InternalLoggerFactory;
+import io.netty.util.internal.logging.Slf4JLoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -112,13 +116,13 @@ public class NettyAcceptor implements ServerAcceptor {
 		abstract void init(ChannelPipeline pipeline) throws Exception;
 	}
 	
-	private static final Logger	LOG						= LoggerFactory
-																.getLogger(NettyAcceptor.class);
+	private static final Logger		LOG						= LoggerFactory
+																	.getLogger(NettyAcceptor.class);
 	
-	EventLoopGroup				bossGroup;
-	EventLoopGroup				workerGroup;
-	BytesMetricsCollector		bytesMetricsCollector	= new BytesMetricsCollector();
-	MessageMetricsCollector		metricsCollector		= new MessageMetricsCollector();
+	private EventLoopGroup			bossGroup;
+	private EventLoopGroup			workerGroup;
+	private BytesMetricsCollector	bytesMetricsCollector	= new BytesMetricsCollector();
+	private MessageMetricsCollector	metricsCollector		= new MessageMetricsCollector();
 	
 	@Override
 	public void initialize(ProtocolProcessor processor, IConfig props)
@@ -149,22 +153,26 @@ public class NettyAcceptor implements ServerAcceptor {
 		ServerBootstrap b = new ServerBootstrap();
 		b.group(bossGroup, workerGroup)
 				.channel(NioServerSocketChannel.class)
-				.childHandler(new ChannelInitializer<SocketChannel>() {
-					@Override
-					public void initChannel(SocketChannel ch) throws Exception {
-						ChannelPipeline pipeline = ch.pipeline();
-						try {
-							pipeliner.init(pipeline);
-						} catch (Throwable th) {
-							LOG.error("Severe error during pipeline creation",
-									th);
-							throw th;
-						}
-					}
-				}).option(ChannelOption.SO_BACKLOG, 128)
+				
+				// option
+				.option(ChannelOption.SO_BACKLOG, 128)
 				.option(ChannelOption.SO_REUSEADDR, true)
 				.option(ChannelOption.TCP_NODELAY, true)
 				.childOption(ChannelOption.SO_KEEPALIVE, true);
+		
+		// initalizer
+		b.childHandler(new ChannelInitializer<SocketChannel>() {
+			@Override
+			public void initChannel(SocketChannel ch) throws Exception {
+				ChannelPipeline pipeline = ch.pipeline();
+				try {
+					pipeliner.init(pipeline);
+				} catch (Throwable th) {
+					LOG.error("Severe error during pipeline creation", th);
+					throw th;
+				}
+			}
+		});
 		try {
 			// Bind and start to accept incoming connections.
 			ChannelFuture f = b.bind(host, port);
@@ -184,12 +192,19 @@ public class NettyAcceptor implements ServerAcceptor {
 		initFactory(host, port, new PipelineInitializer() {
 			@Override
 			void init(ChannelPipeline pipeline) {
+				// -------------------
+				// 靠近传输层
+				// -------------------
+				InternalLoggerFactory
+						.setDefaultFactory(new Slf4JLoggerFactory());
+				pipeline.addLast("logger", new LoggingHandler("Netty",
+						LogLevel.DEBUG));
+				
 				pipeline.addFirst("idleStateHandler", new IdleStateHandler(0,
 						0, Constants.DEFAULT_CONNECT_TIMEOUT));
 				pipeline.addAfter("idleStateHandler", "idleEventHandler",
 						timeoutHandler);
-				// pipeline.addLast("logger", new LoggingHandler("Netty",
-				// LogLevel.ERROR));
+				
 				pipeline.addFirst("bytemetrics", new BytesMetricsHandler(
 						bytesMetricsCollector));
 				pipeline.addLast("decoder", new MQTTDecoder());
@@ -197,6 +212,9 @@ public class NettyAcceptor implements ServerAcceptor {
 				pipeline.addLast("metrics", new MessageMetricsHandler(
 						metricsCollector));
 				pipeline.addLast("handler", handler);
+				// -------------------
+				// 靠近应用层
+				// -------------------
 			}
 		});
 	}
@@ -355,6 +373,22 @@ public class NettyAcceptor implements ServerAcceptor {
 				bytesMetrics.readBytes(), bytesMetrics.wroteBytes()));
 	}
 	
+	public BytesMetricsCollector getBytesMetricsCollector() {
+		return bytesMetricsCollector;
+	}
+
+	public void setBytesMetricsCollector(BytesMetricsCollector bytesMetricsCollector) {
+		this.bytesMetricsCollector = bytesMetricsCollector;
+	}
+
+	public MessageMetricsCollector getMetricsCollector() {
+		return metricsCollector;
+	}
+
+	public void setMetricsCollector(MessageMetricsCollector metricsCollector) {
+		this.metricsCollector = metricsCollector;
+	}
+
 	private SslHandlerFactory initSSLHandlerFactory(IConfig props) {
 		SslHandlerFactory factory = new SslHandlerFactory(props);
 		return factory.canCreate() ? factory : null;

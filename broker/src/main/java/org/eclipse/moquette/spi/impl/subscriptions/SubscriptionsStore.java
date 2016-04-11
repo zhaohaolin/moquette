@@ -365,11 +365,11 @@ public class SubscriptionsStore {
 	}
 	
 	protected static List<Token> parseTopic(String topic) throws ParseException {
-		List<Token> res = new ArrayList<>();
+		List<Token> tokens = new ArrayList<Token>();
 		String[] splitted = topic.split("/");
 		
 		if (splitted.length == 0) {
-			res.add(Token.EMPTY);
+			tokens.add(Token.EMPTY);
 		}
 		
 		if (topic.endsWith("/")) {
@@ -388,7 +388,7 @@ public class SubscriptionsStore {
 				// ParseException("Bad format of topic, expetec topic name between separators",
 				// i);
 				// }
-				res.add(Token.EMPTY);
+				tokens.add(Token.EMPTY);
 			} else if (s.equals("#")) {
 				// check that multi is the last symbol
 				if (i != splitted.length - 1) {
@@ -396,20 +396,20 @@ public class SubscriptionsStore {
 							"Bad format of topic, the multi symbol (#) has to be the last one after a separator",
 							i);
 				}
-				res.add(Token.MULTI);
+				tokens.add(Token.MULTI);
 			} else if (s.contains("#")) {
 				throw new ParseException(
 						"Bad format of topic, invalid subtopic name: " + s, i);
 			} else if (s.equals("+")) {
-				res.add(Token.SINGLE);
+				tokens.add(Token.SINGLE);
 			} else if (s.contains("+")) {
 				throw new ParseException(
 						"Bad format of topic, invalid subtopic name: " + s, i);
 			} else {
-				res.add(new Token(s));
+				tokens.add(new Token(s));
 			}
 		}
 		
-		return res;
+		return tokens;
 	}
 }

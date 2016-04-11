@@ -63,7 +63,7 @@ public class SimpleMessaging {
 	private SimpleMessaging() {
 	}
 	
-	public static SimpleMessaging getInstance() {
+	public final static SimpleMessaging getInstance() {
 		if (INSTANCE == null) {
 			INSTANCE = new SimpleMessaging();
 		}

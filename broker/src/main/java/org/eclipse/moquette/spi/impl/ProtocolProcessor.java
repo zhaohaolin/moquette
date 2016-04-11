@@ -94,13 +94,13 @@ public class ProtocolProcessor {
 	private static final Logger					LOG			= LoggerFactory
 																	.getLogger(ProtocolProcessor.class);
 	
-	private Map<String, ConnectionDescriptor>	m_clientIDs	= new ConcurrentHashMap<>();
+	private Map<String, ConnectionDescriptor>	clientIDs	= new ConcurrentHashMap<>();
 	private SubscriptionsStore					subscriptions;
 	private boolean								allowAnonymous;
-	private IAuthorizator						m_authorizator;
-	private IMessagesStore						m_messagesStore;
-	private ISessionsStore						m_sessionsStore;
-	private IAuthenticator						m_authenticator;
+	private IAuthorizator						authorizator;
+	private IMessagesStore						messagesStore;
+	private ISessionsStore						sessionsStore;
+	private IAuthenticator						authenticator;
 	private BrokerInterceptor					m_interceptor;
 	
 	// maps clientID to Will testament, if specified on CONNECT
@@ -130,11 +130,11 @@ public class ProtocolProcessor {
 		this.m_interceptor = interceptor;
 		this.subscriptions = subscriptions;
 		this.allowAnonymous = allowAnonymous;
-		m_authorizator = authorizator;
+		this.authorizator = authorizator;
 		LOG.debug("subscription tree on init {}", subscriptions.dumpTree());
-		m_authenticator = authenticator;
-		m_messagesStore = storageService;
-		m_sessionsStore = sessionsStore;
+		this.authenticator = authenticator;
+		this.messagesStore = storageService;
+		this.sessionsStore = sessionsStore;
 	}
 	
 	public void processConnect(ServerChannel session, ConnectMessage msg) {
@@ -166,7 +166,7 @@ public class ProtocolProcessor {
 				failedCredentials(session);
 				return;
 			}
-			if (!m_authenticator.checkValid(msg.getUsername(), pwd)) {
+			if (!authenticator.checkValid(msg.getUsername(), pwd)) {
 				failedCredentials(session);
 				return;
 			}
@@ -178,12 +178,12 @@ public class ProtocolProcessor {
 		}
 		
 		// if an old client with the same ID already exists close its session.
-		if (m_clientIDs.containsKey(msg.getClientID())) {
+		if (clientIDs.containsKey(msg.getClientID())) {
 			LOG.info(
 					"Found an existing connection with same client ID <{}>, forcing to close",
 					msg.getClientID());
 			// clean the subscriptions if the old used a cleanSession = true
-			ServerChannel oldSession = m_clientIDs.get(msg.getClientID())
+			ServerChannel oldSession = clientIDs.get(msg.getClientID())
 					.getSession();
 			boolean cleanSession = (Boolean) oldSession
 					.getAttribute(NettyChannel.ATTR_KEY_CLEANSESSION);
@@ -201,7 +201,7 @@ public class ProtocolProcessor {
 		
 		ConnectionDescriptor connDescr = new ConnectionDescriptor(
 				msg.getClientID(), session, msg.isCleanSession());
-		m_clientIDs.put(msg.getClientID(), connDescr);
+		clientIDs.put(msg.getClientID(), connDescr);
 		
 		int keepAlive = msg.getKeepAlive();
 		LOG.debug("Connect with keepAlive {} s", keepAlive);
@@ -238,7 +238,7 @@ public class ProtocolProcessor {
 		
 		ConnAckMessage okResp = new ConnAckMessage();
 		okResp.setReturnCode(ConnAckMessage.CONNECTION_ACCEPTED);
-		boolean isSessionAlreadyStored = m_sessionsStore.contains(msg
+		boolean isSessionAlreadyStored = sessionsStore.contains(msg
 				.getClientID());
 		if (!msg.isCleanSession() && isSessionAlreadyStored) {
 			okResp.setSessionPresent(true);
@@ -249,7 +249,7 @@ public class ProtocolProcessor {
 		if (!isSessionAlreadyStored) {
 			LOG.info("Create persistent session for clientID <{}>",
 					msg.getClientID());
-			m_sessionsStore.createNewSession(msg.getClientID());
+			sessionsStore.createNewSession(msg.getClientID());
 		}
 		LOG.info("Connected client ID <{}> with clean session {}",
 				msg.getClientID(), msg.isCleanSession());
@@ -272,7 +272,7 @@ public class ProtocolProcessor {
 	 * */
 	private void republishStoredInSession(String clientID) {
 		LOG.trace("republishStoredInSession for client <{}>", clientID);
-		List<PublishEvent> publishedEvents = m_messagesStore
+		List<PublishEvent> publishedEvents = messagesStore
 				.listMessagesInSession(clientID);
 		if (publishedEvents.isEmpty()) {
 			LOG.info("No stored messages for client <{}>", clientID);
@@ -284,7 +284,7 @@ public class ProtocolProcessor {
 			sendPublish(pubEvt.getClientID(), pubEvt.getTopic(),
 					pubEvt.getQos(), pubEvt.getMessage(), false,
 					pubEvt.getMessageID());
-			m_messagesStore.removeMessageInSession(clientID,
+			messagesStore.removeMessageInSession(clientID,
 					pubEvt.getMessageID());
 		}
 	}
@@ -294,7 +294,7 @@ public class ProtocolProcessor {
 				.getAttribute(NettyChannel.ATTR_KEY_CLIENTID);
 		int messageID = msg.getMessageID();
 		// Remove the message from message store
-		m_messagesStore.removeMessageInSession(clientID, messageID);
+		messagesStore.removeMessageInSession(clientID, messageID);
 	}
 	
 	private void cleanSession(String clientID) {
@@ -303,7 +303,7 @@ public class ProtocolProcessor {
 		subscriptions.removeForClient(clientID);
 		
 		// remove also the messages stored of type QoS1/2
-		m_messagesStore.dropMessagesInSession(clientID);
+		messagesStore.dropMessagesInSession(clientID);
 	}
 	
 	public void processPublish(ServerChannel session, PublishMessage msg) {
@@ -314,7 +314,7 @@ public class ProtocolProcessor {
 		// check if the topic can be wrote
 		String user = (String) session
 				.getAttribute(NettyChannel.ATTR_KEY_USERNAME);
-		if (m_authorizator.canWrite(topic, user, clientID)) {
+		if (authorizator.canWrite(topic, user, clientID)) {
 			executePublish(clientID, msg);
 			m_interceptor.notifyTopicPublished(msg, clientID);
 		} else {
@@ -322,7 +322,8 @@ public class ProtocolProcessor {
 		}
 	}
 	
-	private void executePublish(String clientID, PublishMessage msg) {
+	// 把这个方法设计成公有的,目的是为了在PUSH时使用这个方法
+	public void executePublish(String clientID, PublishMessage msg) {
 		final String topic = msg.getTopicName();
 		final AbstractMessage.QOSType qos = msg.getQos();
 		final ByteBuffer message = msg.getPayload();
@@ -336,17 +337,17 @@ public class ProtocolProcessor {
 			forward2Subscribers(publishEvt);
 		} else if (qos == AbstractMessage.QOSType.LEAST_ONE) { // QoS1
 			// TODO implement inFlight!!
-			m_messagesStore.storeTemporaryPublish(publishEvt, clientID,
-					messageID);
+			messagesStore
+					.storeTemporaryPublish(publishEvt, clientID, messageID);
 			forward2Subscribers(publishEvt);
-			m_messagesStore.cleanTemporaryPublish(clientID, messageID);
+			messagesStore.cleanTemporaryPublish(clientID, messageID);
 			// NB the PUB_ACK could be sent also after the addInFlight
 			sendPubAck(new PubAckEvent(messageID, clientID));
 			LOG.debug("replying with PubAck to MSG ID {}", messageID);
 		} else if (qos == AbstractMessage.QOSType.EXACTLY_ONCE) { // QoS2
 			String publishKey = String.format("%s%d", clientID, messageID);
 			// store the message in temp store
-			m_messagesStore.persistQoS2Message(publishKey, publishEvt);
+			messagesStore.persistQoS2Message(publishKey, publishEvt);
 			sendPubRec(clientID, messageID);
 			// Next the client will send us a pub rel
 			// NB publish to subscribers for QoS 2 happen upon PUBREL from
@@ -356,9 +357,9 @@ public class ProtocolProcessor {
 		if (retain) {
 			if (qos == AbstractMessage.QOSType.MOST_ONE) {
 				// QoS == 0 && retain => clean old retained
-				m_messagesStore.cleanRetained(topic);
+				messagesStore.cleanRetained(topic);
 			} else {
-				m_messagesStore.storeRetained(topic, message, qos);
+				messagesStore.storeRetained(topic, message, qos);
 			}
 		}
 	}
@@ -372,7 +373,7 @@ public class ProtocolProcessor {
 		// default to 1
 		Integer messageId = null;
 		if (will.getQos() != AbstractMessage.QOSType.MOST_ONE) {
-			messageId = m_messagesStore.nextPacketID(clientID);
+			messageId = messagesStore.nextPacketID(clientID);
 		}
 		
 		PublishEvent pub = new PublishEvent(will.getTopic(), will.getQos(),
@@ -422,7 +423,7 @@ public class ProtocolProcessor {
 					PublishEvent newPublishEvt = new PublishEvent(topic, qos,
 							message, retain, sub.getClientId(),
 							messageID != null ? messageID : 0);
-					m_messagesStore.storePublishForFuture(newPublishEvt);
+					messagesStore.storePublishForFuture(newPublishEvt);
 				} else {
 					// TODO also QoS 1 has to be stored in Flight Zone
 					// if QoS 2 then store it in temp memory
@@ -431,13 +432,12 @@ public class ProtocolProcessor {
 								qos, message, retain, sub.getClientId(),
 								messageID != null ? messageID : 0);
 						if (null != messageID)
-							m_messagesStore
-									.storeTemporaryPublish(newPublishEvt,
-											sub.getClientId(), messageID);
+							messagesStore.storeTemporaryPublish(newPublishEvt,
+									sub.getClientId(), messageID);
 					}
 					// publish
 					if (sub.isActive()) {
-						int messageId = m_messagesStore.nextPacketID(sub
+						int messageId = messagesStore.nextPacketID(sub
 								.getClientId());
 						sendPublish(sub.getClientId(), topic, qos, message,
 								false, messageId);
@@ -474,26 +474,26 @@ public class ProtocolProcessor {
 			}
 		}
 		
-		if (m_clientIDs == null) {
+		if (clientIDs == null) {
 			throw new RuntimeException(
 					"Internal bad error, found m_clientIDs to null while it should be initialized, somewhere it's overwritten!!");
 		}
-		LOG.debug("clientIDs are {}", m_clientIDs);
-		if (m_clientIDs.get(clientId) == null) {
+		LOG.debug("clientIDs are {}", clientIDs);
+		if (clientIDs.get(clientId) == null) {
 			// TODO while we were publishing to the target client, that client
 			// disconnected,
 			// could happen is not an error HANDLE IT
 			throw new RuntimeException(
 					String.format(
 							"Can't find a ConnectionDescriptor for client <%s> in cache <%s>",
-							clientId, m_clientIDs));
+							clientId, clientIDs));
 		}
-		ServerChannel session = m_clientIDs.get(clientId).getSession();
+		ServerChannel session = clientIDs.get(clientId).getSession();
 		LOG.debug("Session for clientId {} is {}", clientId, session);
 		
 		String user = (String) session
 				.getAttribute(NettyChannel.ATTR_KEY_USERNAME);
-		if (!m_authorizator.canRead(topic, user, clientId)) {
+		if (!authorizator.canRead(topic, user, clientId)) {
 			LOG.debug("topic {} doesn't have read credentials", topic);
 			return;
 		}
@@ -506,7 +506,7 @@ public class ProtocolProcessor {
 				clientID, messageID);
 		PubRecMessage pubRecMessage = new PubRecMessage();
 		pubRecMessage.setMessageID(messageID);
-		m_clientIDs.get(clientID).getSession().write(pubRecMessage);
+		clientIDs.get(clientID).getSession().write(pubRecMessage);
 	}
 	
 	private void sendPubAck(PubAckEvent evt) {
@@ -516,20 +516,20 @@ public class ProtocolProcessor {
 		pubAckMessage.setMessageID(evt.getMessageId());
 		
 		try {
-			if (m_clientIDs == null) {
+			if (clientIDs == null) {
 				throw new RuntimeException(
 						"Internal bad error, found m_clientIDs to null while it should be initialized, somewhere it's overwritten!!");
 			}
-			LOG.debug("clientIDs are {}", m_clientIDs);
-			if (m_clientIDs.get(clientId) == null) {
+			LOG.debug("clientIDs are {}", clientIDs);
+			if (clientIDs.get(clientId) == null) {
 				throw new RuntimeException(
 						String.format(
 								"Can't find a ConnectionDescriptor for client %s in cache %s",
-								clientId, m_clientIDs));
+								clientId, clientIDs));
 			}
 			// LOG.debug("Session for clientId " + clientId + " is " +
 			// m_clientIDs.get(clientId).getSession());
-			m_clientIDs.get(clientId).getSession().write(pubAckMessage);
+			clientIDs.get(clientId).getSession().write(pubAckMessage);
 		} catch (Throwable t) {
 			LOG.error(null, t);
 		}
@@ -547,14 +547,14 @@ public class ProtocolProcessor {
 				"PUB --PUBREL--> SRV processPubRel invoked for clientID {} ad messageID {}",
 				clientID, messageID);
 		String publishKey = String.format("%s%d", clientID, messageID);
-		PublishEvent evt = m_messagesStore.retrieveQoS2Message(publishKey);
+		PublishEvent evt = messagesStore.retrieveQoS2Message(publishKey);
 		forward2Subscribers(evt);
-		m_messagesStore.removeQoS2Message(publishKey);
+		messagesStore.removeQoS2Message(publishKey);
 		
 		if (evt.isRetain()) {
 			final String topic = evt.getTopic();
 			final AbstractMessage.QOSType qos = evt.getQos();
-			m_messagesStore.storeRetained(topic, evt.getMessage(), qos);
+			messagesStore.storeRetained(topic, evt.getMessage(), qos);
 		}
 		
 		sendPubComp(clientID, messageID);
@@ -567,7 +567,7 @@ public class ProtocolProcessor {
 		PubCompMessage pubCompMessage = new PubCompMessage();
 		pubCompMessage.setMessageID(messageID);
 		
-		m_clientIDs.get(clientID).getSession().write(pubCompMessage);
+		clientIDs.get(clientID).getSession().write(pubCompMessage);
 	}
 	
 	public void processPubRec(ServerChannel session, PubRecMessage msg) {
@@ -598,7 +598,7 @@ public class ProtocolProcessor {
 				clientID, messageID);
 		// once received the PUBCOMP then remove the message from the temp
 		// memory
-		m_messagesStore.cleanTemporaryPublish(clientID, messageID);
+		messagesStore.cleanTemporaryPublish(clientID, messageID);
 	}
 	
 	public void processDisconnect(ServerChannel session, DisconnectMessage msg)
@@ -612,7 +612,7 @@ public class ProtocolProcessor {
 			cleanSession(clientID);
 		}
 		// m_notifier.disconnect(evt.getSession());
-		m_clientIDs.remove(clientID);
+		clientIDs.remove(clientID);
 		session.close(true);
 		
 		// de-activate the subscriptions for this ClientID
@@ -629,7 +629,7 @@ public class ProtocolProcessor {
 		String clientID = evt.clientID;
 		// If already removed a disconnect message was already processed for
 		// this clientID
-		if (evt.sessionStolen && m_clientIDs.remove(clientID) != null) {
+		if (evt.sessionStolen && clientIDs.remove(clientID) != null) {
 			// de-activate the subscriptions for this ClientID
 			subscriptions.deactivate(clientID);
 			LOG.info("Lost connection with client <{}>", clientID);
@@ -721,7 +721,7 @@ public class ProtocolProcessor {
 		m_interceptor.notifyTopicSubscribed(newSubscription);
 		
 		// scans retained messages to be published to the new subscription
-		Collection<IMessagesStore.StoredMessage> messages = m_messagesStore
+		Collection<IMessagesStore.StoredMessage> messages = messagesStore
 				.searchMatching(new IMatchingCondition() {
 					public boolean match(String key) {
 						return SubscriptionsStore.matchTopics(key, topic);
@@ -735,8 +735,7 @@ public class ProtocolProcessor {
 			// storedMsg.getTopic(), storedMsg.getQos(), storedMsg.getPayload(),
 			// true);
 			Integer packetID = storedMsg.getQos() == QOSType.MOST_ONE ? null
-					: m_messagesStore.nextPacketID(newSubscription
-							.getClientId());
+					: messagesStore.nextPacketID(newSubscription.getClientId());
 			sendPublish(newSubscription.getClientId(), storedMsg.getTopic(),
 					storedMsg.getQos(), storedMsg.getPayload(), true, packetID);
 		}

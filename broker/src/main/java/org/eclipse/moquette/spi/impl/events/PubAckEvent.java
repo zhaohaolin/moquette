@@ -20,8 +20,8 @@ package org.eclipse.moquette.spi.impl.events;
  */
 public class PubAckEvent extends MessagingEvent {
 	
-	int		messageId;
-	String	clientID;
+	private int		messageId;
+	private String	clientID;
 	
 	public PubAckEvent(int messageID, String clientID) {
 		this.messageId = messageID;
