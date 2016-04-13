@@ -46,21 +46,21 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	private static final Logger								LOG			= LoggerFactory
 																				.getLogger(MapDBPersistentStore.class);
 	
-	private ConcurrentMap<String, StoredMessage>			m_retainedStore;
+	private ConcurrentMap<String, StoredMessage>			retainedStore;
 	// maps clientID to the list of pending messages stored
-	private ConcurrentMap<String, List<StoredPublishEvent>>	m_persistentMessageStore;
+	private ConcurrentMap<String, List<StoredPublishEvent>>	persistentMessageStore;
 	// bind clientID+MsgID -> evt message published
-	private ConcurrentMap<String, StoredPublishEvent>		m_inflightStore;
+	private ConcurrentMap<String, StoredPublishEvent>		inflightStore;
 	// map clientID <-> set of currently in flight packet identifiers
-	Map<String, Set<Integer>>								m_inFlightIds;
+	Map<String, Set<Integer>>								inFlightIds;
 	// bind clientID+MsgID -> evt message published
-	private ConcurrentMap<String, StoredPublishEvent>		m_qos2Store;
+	private ConcurrentMap<String, StoredPublishEvent>		qos2Store;
 	// persistent Map of clientID, set of Subscriptions
-	private ConcurrentMap<String, Set<Subscription>>		m_persistentSubscriptions;
-	private DB												m_db;
-	private String											m_storePath;
+	private ConcurrentMap<String, Set<Subscription>>		persistentSubscriptions;
+	private DB												db;
+	private String											storePath;
 	
-	protected final ScheduledExecutorService				m_scheduler	= Executors
+	protected final ScheduledExecutorService				scheduler	= Executors
 																				.newScheduledThreadPool(1);
 	
 	/*
@@ -69,49 +69,49 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	 */
 	
 	public MapDBPersistentStore() {
-		this.m_storePath = "";
+		this.storePath = "";
 	}
 	
 	public MapDBPersistentStore(String storePath) {
-		this.m_storePath = storePath;
+		this.storePath = storePath;
 	}
 	
 	@Override
 	public void initStore() {
-		if (m_storePath == null || m_storePath.isEmpty()) {
-			m_db = DBMaker.newMemoryDB().make();
+		if (this.storePath == null || this.storePath.isEmpty()) {
+			this.db = DBMaker.newMemoryDB().make();
 		} else {
 			File tmpFile;
 			try {
-				tmpFile = new File(m_storePath);
+				tmpFile = new File(this.storePath);
 				boolean fileNewlyCreated = tmpFile.createNewFile();
 				LOG.info("Starting with {} [{}] db file",
-						fileNewlyCreated ? "fresh" : "existing", m_storePath);
+						fileNewlyCreated ? "fresh" : "existing", storePath);
 			} catch (IOException ex) {
 				LOG.error(null, ex);
 				throw new MQTTException(
 						"Can't create temp file for subscriptions storage ["
-								+ m_storePath + "]", ex);
+								+ storePath + "]", ex);
 			}
-			m_db = DBMaker.newFileDB(tmpFile).make();
+			this.db = DBMaker.newFileDB(tmpFile).make();
 		}
-		m_retainedStore = m_db.getHashMap("retained");
-		m_persistentMessageStore = m_db.getHashMap("persistedMessages");
-		m_inflightStore = m_db.getHashMap("inflight");
-		m_inFlightIds = m_db.getHashMap("inflightPacketIDs");
-		m_persistentSubscriptions = m_db.getHashMap("subscriptions");
-		m_qos2Store = m_db.getHashMap("qos2Store");
-		m_scheduler.scheduleWithFixedDelay(new Runnable() {
+		this.retainedStore = db.getHashMap("retained");
+		this.persistentMessageStore = db.getHashMap("persistedMessages");
+		this.inflightStore = db.getHashMap("inflight");
+		this.inFlightIds = db.getHashMap("inflightPacketIDs");
+		this.persistentSubscriptions = db.getHashMap("subscriptions");
+		this.qos2Store = db.getHashMap("qos2Store");
+		this.scheduler.scheduleWithFixedDelay(new Runnable() {
 			@Override
 			public void run() {
-				m_db.commit();
+				db.commit();
 			}
 		}, 30, 30, TimeUnit.SECONDS);
 	}
 	
 	@Override
 	public void cleanRetained(String topic) {
-		m_retainedStore.remove(topic);
+		retainedStore.remove(topic);
 	}
 	
 	@Override
@@ -119,12 +119,12 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 			AbstractMessage.QOSType qos) {
 		if (!message.hasRemaining()) {
 			// clean the message from topic
-			m_retainedStore.remove(topic);
+			retainedStore.remove(topic);
 		} else {
 			// store the message to the topic
 			byte[] raw = new byte[message.remaining()];
 			message.get(raw);
-			m_retainedStore.put(topic, new StoredMessage(raw, qos, topic));
+			retainedStore.put(topic, new StoredMessage(raw, qos, topic));
 		}
 	}
 	
@@ -132,12 +132,11 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	public Collection<StoredMessage> searchMatching(IMatchingCondition condition) {
 		LOG.debug(
 				"searchMatching scanning all retained messages, presents are {}",
-				m_retainedStore.size());
+				retainedStore.size());
 		
 		List<StoredMessage> results = new ArrayList<>();
 		
-		for (Map.Entry<String, StoredMessage> entry : m_retainedStore
-				.entrySet()) {
+		for (Map.Entry<String, StoredMessage> entry : retainedStore.entrySet()) {
 			StoredMessage storedMsg = entry.getValue();
 			if (condition.match(entry.getKey())) {
 				results.add(storedMsg);
@@ -151,13 +150,13 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	public void storePublishForFuture(PublishEvent evt) {
 		List<StoredPublishEvent> storedEvents;
 		String clientID = evt.getClientID();
-		if (!m_persistentMessageStore.containsKey(clientID)) {
+		if (!persistentMessageStore.containsKey(clientID)) {
 			storedEvents = new ArrayList<>();
 		} else {
-			storedEvents = m_persistentMessageStore.get(clientID);
+			storedEvents = persistentMessageStore.get(clientID);
 		}
 		storedEvents.add(convertToStored(evt));
-		m_persistentMessageStore.put(clientID, storedEvents);
+		persistentMessageStore.put(clientID, storedEvents);
 		// NB rewind the evt message content
 		LOG.debug("Stored published message for client <{}> on topic <{}>",
 				clientID, evt.getTopic());
@@ -167,7 +166,7 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	public List<PublishEvent> listMessagesInSession(String clientID) {
 		List<PublishEvent> liveEvts = new ArrayList<>();
 		List<StoredPublishEvent> storedEvts = defaultGet(
-				m_persistentMessageStore, clientID,
+				persistentMessageStore, clientID,
 				Collections.<StoredPublishEvent> emptyList());
 		
 		for (StoredPublishEvent storedEvt : storedEvts) {
@@ -178,8 +177,7 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	
 	@Override
 	public void removeMessageInSession(String clientID, Integer messageID) {
-		List<StoredPublishEvent> events = m_persistentMessageStore
-				.get(clientID);
+		List<StoredPublishEvent> events = persistentMessageStore.get(clientID);
 		if (events == null) {
 			return;
 		}
@@ -194,19 +192,19 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 			}
 		}
 		events.remove(toRemoveEvt);
-		m_persistentMessageStore.put(clientID, events);
+		persistentMessageStore.put(clientID, events);
 	}
 	
 	public void dropMessagesInSession(String clientID) {
-		m_persistentMessageStore.remove(clientID);
+		persistentMessageStore.remove(clientID);
 	}
 	
 	// ----------------- In flight methods -----------------
 	@Override
 	public void cleanTemporaryPublish(String clientID, int packetID) {
 		String publishKey = String.format("%s%d", clientID, packetID);
-		m_inflightStore.remove(publishKey);
-		Set<Integer> inFlightForClient = this.m_inFlightIds.get(clientID);
+		inflightStore.remove(publishKey);
+		Set<Integer> inFlightForClient = this.inFlightIds.get(clientID);
 		if (inFlightForClient != null) {
 			inFlightForClient.remove(packetID);
 		}
@@ -217,7 +215,7 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 			int packetID) {
 		String publishKey = String.format("%s%d", clientID, packetID);
 		StoredPublishEvent storedEvt = convertToStored(evt);
-		m_inflightStore.put(publishKey, storedEvt);
+		inflightStore.put(publishKey, storedEvt);
 	}
 	
 	/**
@@ -225,12 +223,12 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	 * */
 	@Override
 	public int nextPacketID(String clientID) {
-		Set<Integer> inFlightForClient = this.m_inFlightIds.get(clientID);
+		Set<Integer> inFlightForClient = this.inFlightIds.get(clientID);
 		if (inFlightForClient == null) {
 			int nextPacketId = 1;
 			inFlightForClient = new HashSet<>();
 			inFlightForClient.add(nextPacketId);
-			this.m_inFlightIds.put(clientID, inFlightForClient);
+			this.inFlightIds.put(clientID, inFlightForClient);
 			return nextPacketId;
 		}
 		int maxId = inFlightForClient.isEmpty() ? 0 : Collections
@@ -244,10 +242,10 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	public void removeSubscription(String topic, String clientID) {
 		LOG.debug("removeSubscription topic filter: {} for clientID: {}",
 				topic, clientID);
-		if (!m_persistentSubscriptions.containsKey(clientID)) {
+		if (!persistentSubscriptions.containsKey(clientID)) {
 			return;
 		}
-		Set<Subscription> clientSubscriptions = m_persistentSubscriptions
+		Set<Subscription> clientSubscriptions = persistentSubscriptions
 				.get(clientID);
 		// search for the subscription to remove
 		Subscription toBeRemoved = null;
@@ -261,7 +259,7 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 		if (toBeRemoved != null) {
 			clientSubscriptions.remove(toBeRemoved);
 		}
-		m_persistentSubscriptions.put(clientID, clientSubscriptions);
+		persistentSubscriptions.put(clientID, clientSubscriptions);
 	}
 	
 	@Override
@@ -269,15 +267,14 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 		LOG.debug("addNewSubscription invoked with subscription {}",
 				newSubscription);
 		final String clientID = newSubscription.getClientId();
-		if (!m_persistentSubscriptions.containsKey(clientID)) {
+		if (!persistentSubscriptions.containsKey(clientID)) {
 			LOG.debug(
 					"clientID {} is a newcome, creating it's subscriptions set",
 					clientID);
-			m_persistentSubscriptions
-					.put(clientID, new HashSet<Subscription>());
+			persistentSubscriptions.put(clientID, new HashSet<Subscription>());
 		}
 		
-		Set<Subscription> subs = m_persistentSubscriptions.get(clientID);
+		Set<Subscription> subs = persistentSubscriptions.get(clientID);
 		if (!subs.contains(newSubscription)) {
 			LOG.debug(
 					"updating clientID {} subscriptions set with new subscription",
@@ -296,25 +293,25 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 				subs.remove(existingSubscription);
 			}
 			subs.add(newSubscription);
-			m_persistentSubscriptions.put(clientID, subs);
+			persistentSubscriptions.put(clientID, subs);
 			LOG.debug("clientID {} subscriptions set now is {}", clientID, subs);
 		}
 	}
 	
 	@Override
 	public void wipeSubscriptions(String clientID) {
-		m_persistentSubscriptions.remove(clientID);
+		persistentSubscriptions.remove(clientID);
 	}
 	
 	@Override
 	public void updateSubscriptions(String clientID,
 			Set<Subscription> subscriptions) {
-		m_persistentSubscriptions.put(clientID, subscriptions);
+		persistentSubscriptions.put(clientID, subscriptions);
 	}
 	
 	public List<Subscription> listAllSubscriptions() {
 		List<Subscription> allSubscriptions = new ArrayList<>();
-		for (Map.Entry<String, Set<Subscription>> entry : m_persistentSubscriptions
+		for (Map.Entry<String, Set<Subscription>> entry : persistentSubscriptions
 				.entrySet()) {
 			allSubscriptions.addAll(entry.getValue());
 		}
@@ -325,33 +322,33 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	
 	@Override
 	public boolean contains(String clientID) {
-		return m_persistentSubscriptions.containsKey(clientID);
+		return persistentSubscriptions.containsKey(clientID);
 	}
 	
 	@Override
 	public void createNewSession(String clientID) {
 		LOG.debug("createNewSession for client <{}>", clientID);
-		if (m_persistentSubscriptions.containsKey(clientID)) {
+		if (persistentSubscriptions.containsKey(clientID)) {
 			LOG.error("already exists a session for client <{}>", clientID);
 			return;
 		}
 		LOG.debug(
 				"clientID {} is a newcome, creating it's empty subscriptions set",
 				clientID);
-		m_persistentSubscriptions.put(clientID, new HashSet<Subscription>());
+		persistentSubscriptions.put(clientID, new HashSet<Subscription>());
 	}
 	
 	@Override
 	public void close() {
-		if (this.m_db.isClosed()) {
+		if (this.db.isClosed()) {
 			LOG.debug("already closed");
 			return;
 		}
-		this.m_db.commit();
-		LOG.debug("persisted subscriptions {}", m_persistentSubscriptions);
-		this.m_db.close();
+		this.db.commit();
+		LOG.debug("persisted subscriptions {}", persistentSubscriptions);
+		this.db.close();
 		LOG.debug("closed disk storage");
-		this.m_scheduler.shutdown();
+		this.scheduler.shutdown();
 		LOG.debug("Persistence commit scheduler is shutdown");
 	}
 	
@@ -360,17 +357,17 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	public void persistQoS2Message(String publishKey, PublishEvent evt) {
 		LOG.debug("persistQoS2Message store pubKey: {}, evt: {}", publishKey,
 				evt);
-		m_qos2Store.put(publishKey, convertToStored(evt));
+		qos2Store.put(publishKey, convertToStored(evt));
 	}
 	
 	@Override
 	public void removeQoS2Message(String publishKey) {
 		LOG.debug("Removing stored Q0S2 message <{}>", publishKey);
-		m_qos2Store.remove(publishKey);
+		qos2Store.remove(publishKey);
 	}
 	
 	public PublishEvent retrieveQoS2Message(String publishKey) {
-		StoredPublishEvent storedEvt = m_qos2Store.get(publishKey);
+		StoredPublishEvent storedEvt = qos2Store.get(publishKey);
 		return convertFromStored(storedEvt);
 	}
 	

@@ -28,43 +28,43 @@ class TreeNode {
 		
 	}
 	
-	TreeNode			m_parent;
-	Token				m_token;
-	List<TreeNode>		m_children		= new ArrayList<>();
-	List<Subscription>	m_subscriptions	= new ArrayList<>();
+	TreeNode			parent;
+	Token				token;
+	List<TreeNode>		children		= new ArrayList<TreeNode>();
+	List<Subscription>	subscriptions	= new ArrayList<Subscription>();
 	
 	TreeNode(TreeNode parent) {
-		this.m_parent = parent;
+		this.parent = parent;
 	}
 	
 	Token getToken() {
-		return m_token;
+		return token;
 	}
 	
 	void setToken(Token topic) {
-		this.m_token = topic;
+		this.token = topic;
 	}
 	
 	void addSubscription(Subscription s) {
 		// avoid double registering for same clientID, topic and QoS
-		if (m_subscriptions.contains(s)) {
+		if (subscriptions.contains(s)) {
 			return;
 		}
 		// remove existing subscription for same client and topic but different
 		// QoS
 		Comparator<Subscription> comparator = new ClientIDComparator();
-		Collections.sort(m_subscriptions, comparator);
-		int existingSubIdx = Collections.binarySearch(m_subscriptions, s,
+		Collections.sort(subscriptions, comparator);
+		int existingSubIdx = Collections.binarySearch(subscriptions, s,
 				comparator);
 		if (existingSubIdx >= 0) {
-			m_subscriptions.remove(existingSubIdx);
+			subscriptions.remove(existingSubIdx);
 		}
 		
-		m_subscriptions.add(s);
+		subscriptions.add(s);
 	}
 	
 	void addChild(TreeNode child) {
-		m_children.add(child);
+		children.add(child);
 	}
 	
 	/**
@@ -73,13 +73,13 @@ class TreeNode {
 	 * */
 	TreeNode copy() {
 		final TreeNode copy = new TreeNode(this);
-		copy.m_parent = m_parent;
-		copy.m_children = new ArrayList<>(m_children);
-		copy.m_subscriptions = new ArrayList<>(m_subscriptions.size());
-		for (Subscription sub : m_subscriptions) {
-			copy.m_subscriptions.add(new Subscription(sub));
+		copy.parent = parent;
+		copy.children = new ArrayList<>(children);
+		copy.subscriptions = new ArrayList<>(subscriptions.size());
+		for (Subscription sub : subscriptions) {
+			copy.subscriptions.add(new Subscription(sub));
 		}
-		copy.m_token = m_token;
+		copy.token = token;
 		return copy;
 	}
 	
@@ -88,7 +88,7 @@ class TreeNode {
 	 * null;
 	 */
 	TreeNode childWithToken(Token token) {
-		for (TreeNode child : m_children) {
+		for (TreeNode child : children) {
 			if (child.getToken().equals(token)) {
 				return child;
 			}
@@ -98,12 +98,12 @@ class TreeNode {
 	}
 	
 	void updateChild(TreeNode oldChild, TreeNode newChild) {
-		m_children.remove(oldChild);
-		m_children.add(newChild);
+		children.remove(oldChild);
+		children.add(newChild);
 	}
 	
 	List<Subscription> subscriptions() {
-		return m_subscriptions;
+		return subscriptions;
 	}
 	
 	void matches(Queue<Token> tokens, List<Subscription> matchingSubs) {
@@ -111,9 +111,9 @@ class TreeNode {
 		
 		// check if t is null <=> tokens finished
 		if (t == null) {
-			matchingSubs.addAll(m_subscriptions);
+			matchingSubs.addAll(subscriptions);
 			// check if it has got a MULTI child and add its subscriptions
-			for (TreeNode n : m_children) {
+			for (TreeNode n : children) {
 				if (n.getToken() == Token.MULTI || n.getToken() == Token.SINGLE) {
 					matchingSubs.addAll(n.subscriptions());
 				}
@@ -123,12 +123,12 @@ class TreeNode {
 		}
 		
 		// we are on MULTI, than add subscriptions and return
-		if (m_token == Token.MULTI) {
-			matchingSubs.addAll(m_subscriptions);
+		if (token == Token.MULTI) {
+			matchingSubs.addAll(subscriptions);
 			return;
 		}
 		
-		for (TreeNode n : m_children) {
+		for (TreeNode n : children) {
 			if (n.getToken().match(t)) {
 				// Create a copy of token, else if navigate 2 sibling it
 				// consumes 2 elements on the queue instead of one
@@ -142,8 +142,8 @@ class TreeNode {
 	 * Return the number of registered subscriptions
 	 */
 	int size() {
-		int res = m_subscriptions.size();
-		for (TreeNode child : m_children) {
+		int res = subscriptions.size();
+		for (TreeNode child : children) {
 			res += child.size();
 		}
 		return res;
@@ -158,23 +158,22 @@ class TreeNode {
 		// ConcurrentModification
 		TreeNode newSubRoot = this.copy();
 		List<Subscription> subsToRemove = new ArrayList<>();
-		for (Subscription s : newSubRoot.m_subscriptions) {
+		for (Subscription s : newSubRoot.subscriptions) {
 			if (s.getClientId().equals(clientID)) {
 				subsToRemove.add(s);
 			}
 		}
 		
 		for (Subscription s : subsToRemove) {
-			newSubRoot.m_subscriptions.remove(s);
+			newSubRoot.subscriptions.remove(s);
 		}
 		
 		// go deep
-		List<TreeNode> newChildren = new ArrayList<>(
-				newSubRoot.m_children.size());
-		for (TreeNode child : newSubRoot.m_children) {
+		List<TreeNode> newChildren = new ArrayList<>(newSubRoot.children.size());
+		for (TreeNode child : newSubRoot.children) {
 			newChildren.add(child.removeClientSubscriptions(clientID));
 		}
-		newSubRoot.m_children = newChildren;
+		newSubRoot.children = newChildren;
 		return newSubRoot;
 	}
 	
@@ -183,19 +182,18 @@ class TreeNode {
 	 * */
 	TreeNode deactivate(String clientID) {
 		TreeNode newSubRoot = this.copy();
-		for (Subscription s : newSubRoot.m_subscriptions) {
+		for (Subscription s : newSubRoot.subscriptions) {
 			if (s.getClientId().equals(clientID)) {
 				s.setActive(false);
 			}
 		}
 		
 		// go deep
-		List<TreeNode> newChildren = new ArrayList<>(
-				newSubRoot.m_children.size());
-		for (TreeNode child : newSubRoot.m_children) {
+		List<TreeNode> newChildren = new ArrayList<>(newSubRoot.children.size());
+		for (TreeNode child : newSubRoot.children) {
 			newChildren.add(child.deactivate(clientID));
 		}
-		newSubRoot.m_children = newChildren;
+		newSubRoot.children = newChildren;
 		return newSubRoot;
 	}
 	
@@ -204,19 +202,18 @@ class TreeNode {
 	 * */
 	TreeNode activate(String clientID) {
 		TreeNode newSubRoot = this.copy();
-		for (Subscription s : newSubRoot.m_subscriptions) {
+		for (Subscription s : newSubRoot.subscriptions) {
 			if (s.getClientId().equals(clientID)) {
 				s.setActive(true);
 			}
 		}
 		
 		// go deep
-		List<TreeNode> newChildren = new ArrayList<>(
-				newSubRoot.m_children.size());
-		for (TreeNode child : newSubRoot.m_children) {
+		List<TreeNode> newChildren = new ArrayList<>(newSubRoot.children.size());
+		for (TreeNode child : newSubRoot.children) {
 			newChildren.add(child.activate(clientID));
 		}
-		newSubRoot.m_children = newChildren;
+		newSubRoot.children = newChildren;
 		return newSubRoot;
 	}
 	
@@ -225,13 +222,13 @@ class TreeNode {
 	 * */
 	Set<Subscription> findAllByClientID(String clientID) {
 		Set<Subscription> subs = new HashSet<>();
-		for (Subscription s : m_subscriptions) {
+		for (Subscription s : subscriptions) {
 			if (s.getClientId().equals(clientID)) {
 				subs.add(s);
 			}
 		}
 		// go deep
-		for (TreeNode child : m_children) {
+		for (TreeNode child : children) {
 			subs.addAll(child.findAllByClientID(clientID));
 		}
 		return subs;

@@ -110,7 +110,7 @@ public class MapDBPersistentStoreTest {
 
         //verify the executor is shutdown
         assertTrue("Storage service scheduler can't be stopped in 3 seconds",
-                m_storageService.m_scheduler.awaitTermination(3, TimeUnit.SECONDS));
-        assertTrue(m_storageService.m_scheduler.isTerminated());
+                m_storageService.scheduler.awaitTermination(3, TimeUnit.SECONDS));
+        assertTrue(m_storageService.scheduler.isTerminated());
     }
 }

@@ -68,11 +68,11 @@ public class SubscriptionsStore {
 		public void visit(TreeNode node, int deep) {
 			String subScriptionsStr = "";
 			String indentTabs = indentTabs(deep);
-			for (Subscription sub : node.m_subscriptions) {
+			for (Subscription sub : node.subscriptions) {
 				subScriptionsStr += indentTabs + sub.toString() + "\n";
 			}
 			s += node.getToken() == null ? "" : node.getToken().toString();
-			s += "\n" + (node.m_subscriptions.isEmpty() ? indentTabs : "")
+			s += "\n" + (node.subscriptions.isEmpty() ? indentTabs : "")
 					+ subScriptionsStr /* + "\n" */;
 		}
 		
@@ -158,7 +158,7 @@ public class SubscriptionsStore {
 			if ((matchingChildren = current.childWithToken(token)) != null) {
 				// copy the traversed node
 				current = matchingChildren.copy();
-				current.m_parent = parent;
+				current.parent = parent;
 				// update the child just added in the children list
 				parent.updateChild(matchingChildren, current);
 				parent = current;
@@ -319,7 +319,7 @@ public class SubscriptionsStore {
 			return;
 		}
 		visitor.visit(node, deep);
-		for (TreeNode child : node.m_children) {
+		for (TreeNode child : node.children) {
 			bfsVisit(child, visitor, ++deep);
 		}
 	}

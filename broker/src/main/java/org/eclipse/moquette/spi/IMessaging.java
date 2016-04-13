@@ -25,4 +25,5 @@ package org.eclipse.moquette.spi;
  * @author andrea
  */
 public interface IMessaging {
+	//
 }

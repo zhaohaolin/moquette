@@ -1,38 +1,110 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <relativePath>../</relativePath>
-        <artifactId>moquette-parent</artifactId>
-        <groupId>org.eclipse.moquette</groupId>
-        <version>0.8-SNAPSHOT</version>
-    </parent>
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<relativePath>../</relativePath>
+		<artifactId>moquette-parent</artifactId>
+		<groupId>org.eclipse.moquette</groupId>
+		<version>0.8-SNAPSHOT</version>
+	</parent>
 
-    <artifactId>moquette-embedded-test</artifactId>
-    <packaging>jar</packaging>
-    <name>Moquette - Embedded test</name>
+	<artifactId>moquette</artifactId>
+	<packaging>jar</packaging>
+	<name>Moquette - Embedded test</name>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.eclipse.moquette</groupId>
-            <artifactId>moquette-broker</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.build.timestamp.format>yyyyMMddHHmmss</maven.build.timestamp.format>
+		<timestamp>${maven.build.timestamp}</timestamp>
+		<right.version>EZVIZ TECHNOLOGIES CO.,LTD</right.version>
+		<org.springframework-version>3.2.0.RELEASE</org.springframework-version>
+		<org.aspectj-version>1.7.4</org.aspectj-version>
+		<org.slf4j-version>1.7.2</org.slf4j-version>
+		<java.version>1.7</java.version>
+	</properties>
 
-        <!--<dependency>-->
-            <!--<groupId>org.slf4j</groupId>-->
-            <!--<artifactId>slf4j-log4j12</artifactId>-->
-            <!--<version>1.6.4</version>-->
-        <!--</dependency>-->
-        
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.8.2</version>
-            <scope>test</scope>
-        </dependency>
-        
-    </dependencies>
+	<dependencies>
+		<dependency>
+			<groupId>org.eclipse.moquette</groupId>
+			<artifactId>moquette-broker</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.17</version>
+		</dependency>
+
+		<!--<dependency> -->
+		<!--<groupId>org.slf4j</groupId> -->
+		<!--<artifactId>slf4j-log4j12</artifactId> -->
+		<!--<version>1.6.4</version> -->
+		<!--</dependency> -->
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.8.2</version>
+			<scope>test</scope>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>**/*.properties</exclude>
+						<exclude>**/*.vm</exclude>
+						<exclude>**/*.xml</exclude>
+						<exclude>**/spring</exclude>
+						<exclude>**/ibatis</exclude>
+					</excludes>
+					<archive>
+						<manifest>
+							<addClasspath>true</addClasspath>
+							<classpathPrefix>../lib/</classpathPrefix>
+							<mainClass>org.eclipse.moquette.testembedded.EmbeddedLauncher</mainClass>
+						</manifest>
+						<manifestEntries>
+							<Class-path>../conf/</Class-path>
+							<Built-At>${maven.build.timestamp}</Built-At>
+							<Built-By>joe.zhao</Built-By>
+							<Specification-Title>${project.artifactId}</Specification-Title>
+							<Specification-Version>${project.version}</Specification-Version>
+							<Implementation-Title>${project.artifactId}</Implementation-Title>
+							<Implementation-Version>${project.artifactId}-${project.version}-${timestamp}</Implementation-Version>
+							<Specification-Vendor>${software.version}</Specification-Vendor>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<appendAssemblyId>false</appendAssemblyId>
+					<finalName>${project.artifactId}-${project.version}-${timestamp}</finalName>
+					<descriptors>
+						<descriptor>src/main/assemble/zip-webapp.xml</descriptor>
+					</descriptors>
+				</configuration>
+				<executions>
+					<execution>
+						<id>make-zip</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>

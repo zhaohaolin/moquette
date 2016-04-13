@@ -51,14 +51,14 @@ public class SimpleMessaging {
 	
 	private SubscriptionsStore		subscriptions;
 	
-	private IMessagesStore			m_storageService;
-	private ISessionsStore			m_sessionsStore;
+	private IMessagesStore			storageService;
+	private ISessionsStore			sessionsStore;
 	
-	private BrokerInterceptor		m_interceptor;
+	private BrokerInterceptor		interceptor;
 	
 	private static SimpleMessaging	INSTANCE;
 	
-	private final ProtocolProcessor	m_processor	= new ProtocolProcessor();
+	private final ProtocolProcessor	processor	= new ProtocolProcessor();
 	
 	private SimpleMessaging() {
 	}
@@ -79,10 +79,10 @@ public class SimpleMessaging {
 		// TODO use a property to select the storage path
 		MapDBPersistentStore mapStorage = new MapDBPersistentStore(
 				props.getProperty(PERSISTENT_STORE_PROPERTY_NAME, ""));
-		m_storageService = mapStorage;
-		m_sessionsStore = mapStorage;
+		storageService = mapStorage;
+		sessionsStore = mapStorage;
 		
-		m_storageService.initStore();
+		storageService.initStore();
 		
 		List<InterceptHandler> observers = new ArrayList<>();
 		String interceptorClassName = props.getProperty("intercept.handler");
@@ -95,9 +95,9 @@ public class SimpleMessaging {
 				LOG.error("Can't load the intercept handler {}", ex);
 			}
 		}
-		m_interceptor = new BrokerInterceptor(observers);
+		interceptor = new BrokerInterceptor(observers);
 		
-		subscriptions.init(m_sessionsStore);
+		subscriptions.init(sessionsStore);
 		
 		String configPath = System.getProperty("moquette.path", null);
 		String authenticatorClassName = props.getProperty(
@@ -151,9 +151,9 @@ public class SimpleMessaging {
 		
 		boolean allowAnonymous = Boolean.parseBoolean(props.getProperty(
 				ALLOW_ANONYMOUS_PROPERTY_NAME, "true"));
-		m_processor.init(subscriptions, m_storageService, m_sessionsStore,
-				authenticator, allowAnonymous, authorizator, m_interceptor);
-		return m_processor;
+		processor.init(subscriptions, storageService, sessionsStore,
+				authenticator, allowAnonymous, authorizator, interceptor);
+		return processor;
 	}
 	
 	private Object loadClass(String className, Class<?> cls) {
@@ -195,6 +195,6 @@ public class SimpleMessaging {
 	}
 	
 	public void shutdown() {
-		this.m_storageService.close();
+		this.storageService.close();
 	}
 }

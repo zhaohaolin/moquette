@@ -43,10 +43,10 @@ import java.util.Map;
  */
 public class FileAuthenticator implements IAuthenticator {
 	
-	private static final Logger	LOG				= LoggerFactory
-														.getLogger(FileAuthenticator.class);
+	private static final Logger	LOG			= LoggerFactory
+													.getLogger(FileAuthenticator.class);
 	
-	private Map<String, String>	identities	= new HashMap<>();
+	private Map<String, String>	identities	= new HashMap<String, String>();
 	private MessageDigest		digest;
 	
 	public FileAuthenticator(String parent, String filePath) {

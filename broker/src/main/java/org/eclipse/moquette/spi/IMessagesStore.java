@@ -30,28 +30,32 @@ import java.util.List;
 public interface IMessagesStore {
 	
 	public static class StoredMessage implements Serializable {
-		final AbstractMessage.QOSType	m_qos;
-		final byte[]					m_payload;
-		final String					m_topic;
+		/**
+		 * 
+		 */
+		private static final long		serialVersionUID	= 1L;
+		final AbstractMessage.QOSType	qos;
+		final byte[]					payload;
+		final String					topic;
 		
 		public StoredMessage(byte[] message, AbstractMessage.QOSType qos,
 				String topic) {
-			m_qos = qos;
-			m_payload = message;
-			m_topic = topic;
+			this.qos = qos;
+			this.payload = message;
+			this.topic = topic;
 		}
 		
 		public AbstractMessage.QOSType getQos() {
-			return m_qos;
+			return qos;
 		}
 		
 		public ByteBuffer getPayload() {
-			return (ByteBuffer) ByteBuffer.allocate(m_payload.length)
-					.put(m_payload).flip();
+			return (ByteBuffer) ByteBuffer.allocate(payload.length)
+					.put(payload).flip();
 		}
 		
 		public String getTopic() {
-			return m_topic;
+			return topic;
 		}
 	}
 	

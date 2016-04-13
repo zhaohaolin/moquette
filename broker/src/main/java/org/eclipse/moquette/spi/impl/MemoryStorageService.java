@@ -34,24 +34,25 @@ import static org.eclipse.moquette.spi.impl.Utils.defaultGet;
  */
 public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 	
-	private Map<String, Set<Subscription>>	m_persistentSubscriptions	= new HashMap<>();
-	private Map<String, StoredMessage>		m_retainedStore				= new HashMap<>();
+	private Map<String, Set<Subscription>>	persistentSubscriptions	= new HashMap<>();
+	private Map<String, StoredMessage>		retainedStore			= new HashMap<>();
 	// TODO move in a multimap because only Qos1 and QoS2 are stored here and
 	// they have messageID(key of secondary map)
-	private Map<String, List<PublishEvent>>	m_persistentMessageStore	= new HashMap<>();
-	private Map<String, PublishEvent>		m_inflightStore				= new HashMap<>();
-	private Map<String, Set<Integer>>		m_inflightIDs				= new HashMap<>();
-	private Map<String, PublishEvent>		m_qos2Store					= new HashMap<>();
+	private Map<String, List<PublishEvent>>	persistentMessageStore	= new HashMap<>();
+	private Map<String, PublishEvent>		inflightStore			= new HashMap<>();
+	private Map<String, Set<Integer>>		inflightIDs				= new HashMap<>();
+	private Map<String, PublishEvent>		qos2Store				= new HashMap<>();
 	
-	private static final Logger				LOG							= LoggerFactory
-																				.getLogger(MemoryStorageService.class);
+	private static final Logger				LOG						= LoggerFactory
+																			.getLogger(MemoryStorageService.class);
 	
 	public void initStore() {
+		//
 	}
 	
 	@Override
 	public void cleanRetained(String topic) {
-		m_retainedStore.remove(topic);
+		retainedStore.remove(topic);
 	}
 	
 	@Override
@@ -59,12 +60,12 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 			AbstractMessage.QOSType qos) {
 		if (!message.hasRemaining()) {
 			// clean the message from topic
-			m_retainedStore.remove(topic);
+			retainedStore.remove(topic);
 		} else {
 			// store the message to the topic
 			byte[] raw = new byte[message.remaining()];
 			message.get(raw);
-			m_retainedStore.put(topic, new StoredMessage(raw, qos, topic));
+			retainedStore.put(topic, new StoredMessage(raw, qos, topic));
 		}
 	}
 	
@@ -72,12 +73,11 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 	public Collection<StoredMessage> searchMatching(IMatchingCondition condition) {
 		LOG.debug(
 				"searchMatching scanning all retained messages, presents are {}",
-				m_retainedStore.size());
+				retainedStore.size());
 		
 		List<StoredMessage> results = new ArrayList<StoredMessage>();
 		
-		for (Map.Entry<String, StoredMessage> entry : m_retainedStore
-				.entrySet()) {
+		for (Map.Entry<String, StoredMessage> entry : retainedStore.entrySet()) {
 			StoredMessage storedMsg = entry.getValue();
 			if (condition.match(entry.getKey())) {
 				results.add(storedMsg);
@@ -97,21 +97,21 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 		// } else {
 		// storedEvents = m_persistentMessageStore.get(clientID);
 		// }
-		List<PublishEvent> storedEvents = defaultGet(m_persistentMessageStore,
+		List<PublishEvent> storedEvents = defaultGet(persistentMessageStore,
 				clientID, new ArrayList<PublishEvent>());
 		storedEvents.add(evt);
-		m_persistentMessageStore.put(clientID, storedEvents);
+		persistentMessageStore.put(clientID, storedEvents);
 	}
 	
 	@Override
 	public List<PublishEvent> listMessagesInSession(String clientID) {
-		return new ArrayList<>(defaultGet(m_persistentMessageStore, clientID,
+		return new ArrayList<>(defaultGet(persistentMessageStore, clientID,
 				Collections.<PublishEvent> emptyList()));
 	}
 	
 	@Override
 	public void removeMessageInSession(String clientID, Integer messageID) {
-		List<PublishEvent> events = m_persistentMessageStore.get(clientID);
+		List<PublishEvent> events = persistentMessageStore.get(clientID);
 		if (events == null) {
 			return;
 		}
@@ -126,19 +126,19 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 			}
 		}
 		events.remove(toRemoveEvt);
-		m_persistentMessageStore.put(clientID, events);
+		persistentMessageStore.put(clientID, events);
 	}
 	
 	@Override
 	public void dropMessagesInSession(String clientID) {
-		m_persistentMessageStore.remove(clientID);
+		persistentMessageStore.remove(clientID);
 	}
 	
 	@Override
 	public void cleanTemporaryPublish(String clientID, int packetID) {
 		String publishKey = String.format("%s%d", clientID, packetID);
-		m_inflightStore.remove(publishKey);
-		Set<Integer> inFlightForClient = m_inflightIDs.get(clientID);
+		inflightStore.remove(publishKey);
+		Set<Integer> inFlightForClient = inflightIDs.get(clientID);
 		if (inFlightForClient != null) {
 			inFlightForClient.remove(packetID);
 		}
@@ -148,7 +148,7 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 	public void storeTemporaryPublish(PublishEvent evt, String clientID,
 			int packetID) {
 		String publishKey = String.format("%s%d", clientID, packetID);
-		m_inflightStore.put(publishKey, evt);
+		inflightStore.put(publishKey, evt);
 	}
 	
 	/**
@@ -156,12 +156,12 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 	 * */
 	@Override
 	public int nextPacketID(String clientID) {
-		Set<Integer> inFlightForClient = m_inflightIDs.get(clientID);
+		Set<Integer> inFlightForClient = inflightIDs.get(clientID);
 		if (inFlightForClient == null) {
 			int nextPacketId = 1;
 			inFlightForClient = new HashSet<>();
 			inFlightForClient.add(nextPacketId);
-			m_inflightIDs.put(clientID, inFlightForClient);
+			inflightIDs.put(clientID, inFlightForClient);
 			return nextPacketId;
 		}
 		int maxId = Collections.max(inFlightForClient);
@@ -174,10 +174,10 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 	public void removeSubscription(String topic, String clientID) {
 		LOG.debug("removeSubscription topic filter: {} for clientID: {}",
 				topic, clientID);
-		if (!m_persistentSubscriptions.containsKey(clientID)) {
+		if (!persistentSubscriptions.containsKey(clientID)) {
 			return;
 		}
-		Set<Subscription> clientSubscriptions = m_persistentSubscriptions
+		Set<Subscription> clientSubscriptions = persistentSubscriptions
 				.get(clientID);
 		// search for the subscription to remove
 		Subscription toBeRemoved = null;
@@ -196,47 +196,46 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 	@Override
 	public void addNewSubscription(Subscription newSubscription) {
 		final String clientID = newSubscription.getClientId();
-		if (!m_persistentSubscriptions.containsKey(clientID)) {
-			m_persistentSubscriptions
-					.put(clientID, new HashSet<Subscription>());
+		if (!persistentSubscriptions.containsKey(clientID)) {
+			persistentSubscriptions.put(clientID, new HashSet<Subscription>());
 		}
 		
-		Set<Subscription> subs = m_persistentSubscriptions.get(clientID);
+		Set<Subscription> subs = persistentSubscriptions.get(clientID);
 		if (!subs.contains(newSubscription)) {
 			subs.add(newSubscription);
-			m_persistentSubscriptions.put(clientID, subs);
+			persistentSubscriptions.put(clientID, subs);
 		}
 	}
 	
 	@Override
 	public void wipeSubscriptions(String clientID) {
-		m_persistentSubscriptions.remove(clientID);
+		persistentSubscriptions.remove(clientID);
 	}
 	
 	@Override
 	public void updateSubscriptions(String clientID,
 			Set<Subscription> subscriptions) {
-		m_persistentSubscriptions.put(clientID, subscriptions);
+		persistentSubscriptions.put(clientID, subscriptions);
 	}
 	
 	@Override
 	public boolean contains(String clientID) {
-		return m_persistentSubscriptions.containsKey(clientID);
+		return persistentSubscriptions.containsKey(clientID);
 	}
 	
 	@Override
 	public void createNewSession(String clientID) {
-		if (m_persistentSubscriptions.containsKey(clientID)) {
+		if (persistentSubscriptions.containsKey(clientID)) {
 			LOG.error("already exists a session for client <{}>", clientID);
 			return;
 		}
-		m_persistentSubscriptions.put(clientID, new HashSet<Subscription>());
+		persistentSubscriptions.put(clientID, new HashSet<Subscription>());
 	}
 	
 	@Override
 	public List<Subscription> listAllSubscriptions() {
 		List<Subscription> allSubscriptions = new ArrayList<Subscription>();
-		for (Map.Entry<String, Set<Subscription>> entry : m_persistentSubscriptions
+		for (Map.Entry<String, Set<Subscription>> entry : persistentSubscriptions
 				.entrySet()) {
 			allSubscriptions.addAll(entry.getValue());
 		}
@@ -252,16 +251,16 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 	@Override
 	public void persistQoS2Message(String publishKey, PublishEvent evt) {
 		LOG.debug("persistQoS2Message store pubKey {}, evt {}", publishKey, evt);
-		m_qos2Store.put(publishKey, evt);
+		qos2Store.put(publishKey, evt);
 	}
 	
 	@Override
 	public void removeQoS2Message(String publishKey) {
-		m_qos2Store.remove(publishKey);
+		qos2Store.remove(publishKey);
 	}
 	
 	@Override
 	public PublishEvent retrieveQoS2Message(String publishKey) {
-		return m_qos2Store.get(publishKey);
+		return qos2Store.get(publishKey);
 	}
 }

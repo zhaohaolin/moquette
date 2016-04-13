@@ -446,10 +446,10 @@ public class SubscriptionsStoreTest {
 		
 		// Verify
 		assertNotNull(resp.root);
-		assertNull(resp.root.m_token);
-		assertEquals(1, resp.root.m_children.size());
+		assertNull(resp.root.token);
+		assertEquals(1, resp.root.children.size());
 		assertEquals(resp.createdNode,
-				resp.root.m_children.get(0).m_children.get(0));
+				resp.root.children.get(0).children.get(0));
 	}
 	
 	@Test
@@ -462,11 +462,11 @@ public class SubscriptionsStoreTest {
 		
 		// Verify
 		assertNotNull(respPlus.root);
-		assertNull(respPlus.root.m_token);
-		assertEquals(1, respPlus.root.m_children.size());
-		assertTrue(respPlus.root.m_children.get(0).m_children
+		assertNull(respPlus.root.token);
+		assertEquals(1, respPlus.root.children.size());
+		assertTrue(respPlus.root.children.get(0).children
 				.contains(respPlus.createdNode));
-		assertTrue(respPlus.root.m_children.get(0).m_children
+		assertTrue(respPlus.root.children.get(0).children
 				.contains(respFinance.createdNode));
 	}
 	

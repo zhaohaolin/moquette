@@ -24,8 +24,8 @@ import org.eclipse.moquette.server.ServerChannel;
  */
 public class ProtocolEvent extends MessagingEvent {
 	
-	ServerChannel	session;
-	AbstractMessage	message;
+	private ServerChannel	session;
+	private AbstractMessage	message;
 	
 	public ProtocolEvent(ServerChannel session, AbstractMessage message) {
 		this.session = session;

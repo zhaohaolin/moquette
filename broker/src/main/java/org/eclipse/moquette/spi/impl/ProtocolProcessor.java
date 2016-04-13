@@ -15,20 +15,15 @@
  */
 package org.eclipse.moquette.spi.impl;
 
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.eclipse.moquette.server.netty.NettyChannel;
-import org.eclipse.moquette.spi.IMatchingCondition;
-import org.eclipse.moquette.spi.IMessagesStore;
-import org.eclipse.moquette.spi.ISessionsStore;
-import org.eclipse.moquette.spi.impl.events.*;
-import org.eclipse.moquette.spi.impl.security.IAuthorizator;
-import org.eclipse.moquette.spi.impl.subscriptions.Subscription;
-import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
 import static org.eclipse.moquette.parser.netty.Utils.VERSION_3_1;
 import static org.eclipse.moquette.parser.netty.Utils.VERSION_3_1_1;
+
+import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.eclipse.moquette.proto.messages.AbstractMessage;
 import org.eclipse.moquette.proto.messages.AbstractMessage.QOSType;
 import org.eclipse.moquette.proto.messages.ConnAckMessage;
@@ -44,8 +39,18 @@ import org.eclipse.moquette.proto.messages.SubscribeMessage;
 import org.eclipse.moquette.proto.messages.UnsubAckMessage;
 import org.eclipse.moquette.proto.messages.UnsubscribeMessage;
 import org.eclipse.moquette.server.ConnectionDescriptor;
-import org.eclipse.moquette.spi.impl.security.IAuthenticator;
 import org.eclipse.moquette.server.ServerChannel;
+import org.eclipse.moquette.server.netty.NettyChannel;
+import org.eclipse.moquette.spi.IMatchingCondition;
+import org.eclipse.moquette.spi.IMessagesStore;
+import org.eclipse.moquette.spi.ISessionsStore;
+import org.eclipse.moquette.spi.impl.events.LostConnectionEvent;
+import org.eclipse.moquette.spi.impl.events.PubAckEvent;
+import org.eclipse.moquette.spi.impl.events.PublishEvent;
+import org.eclipse.moquette.spi.impl.security.IAuthenticator;
+import org.eclipse.moquette.spi.impl.security.IAuthorizator;
+import org.eclipse.moquette.spi.impl.subscriptions.Subscription;
+import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +64,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ProtocolProcessor {
 	
+	// define will message
 	static final class WillMessage {
 		private final String		topic;
 		private final ByteBuffer	payload;
@@ -94,17 +100,17 @@ public class ProtocolProcessor {
 	private static final Logger					LOG			= LoggerFactory
 																	.getLogger(ProtocolProcessor.class);
 	
-	private Map<String, ConnectionDescriptor>	clientIDs	= new ConcurrentHashMap<>();
+	private Map<String, ConnectionDescriptor>	clientIDs	= new ConcurrentHashMap<String, ConnectionDescriptor>();
 	private SubscriptionsStore					subscriptions;
 	private boolean								allowAnonymous;
 	private IAuthorizator						authorizator;
 	private IMessagesStore						messagesStore;
 	private ISessionsStore						sessionsStore;
 	private IAuthenticator						authenticator;
-	private BrokerInterceptor					m_interceptor;
+	private BrokerInterceptor					interceptor;
 	
 	// maps clientID to Will testament, if specified on CONNECT
-	private Map<String, WillMessage>			m_willStore	= new ConcurrentHashMap<>();
+	private Map<String, WillMessage>			willStore	= new ConcurrentHashMap<>();
 	
 	ProtocolProcessor() {
 	}
@@ -127,7 +133,7 @@ public class ProtocolProcessor {
 			boolean allowAnonymous, IAuthorizator authorizator,
 			BrokerInterceptor interceptor) {
 		// m_clientIDs = clientIDs;
-		this.m_interceptor = interceptor;
+		this.interceptor = interceptor;
 		this.subscriptions = subscriptions;
 		this.allowAnonymous = allowAnonymous;
 		this.authorizator = authorizator;
@@ -153,7 +159,7 @@ public class ProtocolProcessor {
 			ConnAckMessage okResp = new ConnAckMessage();
 			okResp.setReturnCode(ConnAckMessage.IDENTIFIER_REJECTED);
 			session.write(okResp);
-			m_interceptor.notifyClientConnected(msg);
+			interceptor.notifyClientConnected(msg);
 			return;
 		}
 		
@@ -224,7 +230,7 @@ public class ProtocolProcessor {
 			// save the will testament in the clientID store
 			WillMessage will = new WillMessage(msg.getWillTopic(), bb,
 					msg.isWillRetain(), willQos);
-			m_willStore.put(msg.getClientID(), will);
+			willStore.put(msg.getClientID(), will);
 		}
 		
 		subscriptions.activate(msg.getClientID());
@@ -244,7 +250,7 @@ public class ProtocolProcessor {
 			okResp.setSessionPresent(true);
 		}
 		session.write(okResp);
-		m_interceptor.notifyClientConnected(msg);
+		interceptor.notifyClientConnected(msg);
 		
 		if (!isSessionAlreadyStored) {
 			LOG.info("Create persistent session for clientID <{}>",
@@ -316,7 +322,7 @@ public class ProtocolProcessor {
 				.getAttribute(NettyChannel.ATTR_KEY_USERNAME);
 		if (authorizator.canWrite(topic, user, clientID)) {
 			executePublish(clientID, msg);
-			m_interceptor.notifyTopicPublished(msg, clientID);
+			interceptor.notifyTopicPublished(msg, clientID);
 		} else {
 			LOG.debug("topic {} doesn't have write credentials", topic);
 		}
@@ -618,11 +624,11 @@ public class ProtocolProcessor {
 		// de-activate the subscriptions for this ClientID
 		subscriptions.deactivate(clientID);
 		// cleanup the will store
-		m_willStore.remove(clientID);
+		willStore.remove(clientID);
 		
 		LOG.info("DISCONNECT client <{}> with clean session {}", clientID,
 				cleanSession);
-		m_interceptor.notifyClientDisconnected(clientID);
+		interceptor.notifyClientDisconnected(clientID);
 	}
 	
 	public void processConnectionLost(LostConnectionEvent evt) {
@@ -635,10 +641,10 @@ public class ProtocolProcessor {
 			LOG.info("Lost connection with client <{}>", clientID);
 		}
 		// publish the Will message (if any) for the clientID
-		if (!evt.sessionStolen && m_willStore.containsKey(clientID)) {
-			WillMessage will = m_willStore.get(clientID);
+		if (!evt.sessionStolen && willStore.containsKey(clientID)) {
+			WillMessage will = willStore.get(clientID);
 			forwardPublishWill(will, clientID);
-			m_willStore.remove(clientID);
+			willStore.remove(clientID);
 		}
 	}
 	
@@ -667,7 +673,7 @@ public class ProtocolProcessor {
 			}
 			
 			subscriptions.removeSubscription(topic, clientID);
-			m_interceptor.notifyTopicUnsubscribed(topic, clientID);
+			interceptor.notifyTopicUnsubscribed(topic, clientID);
 		}
 		
 		// ack the client
@@ -718,11 +724,12 @@ public class ProtocolProcessor {
 		subscriptions.add(newSubscription);
 		
 		// notify the Observables
-		m_interceptor.notifyTopicSubscribed(newSubscription);
+		interceptor.notifyTopicSubscribed(newSubscription);
 		
 		// scans retained messages to be published to the new subscription
 		Collection<IMessagesStore.StoredMessage> messages = messagesStore
 				.searchMatching(new IMatchingCondition() {
+					@Override
 					public boolean match(String key) {
 						return SubscriptionsStore.matchTopics(key, topic);
 					}
