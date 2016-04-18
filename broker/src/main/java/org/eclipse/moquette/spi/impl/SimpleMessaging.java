@@ -17,6 +17,7 @@ package org.eclipse.moquette.spi.impl;
 
 import org.eclipse.moquette.commons.Constants;
 import org.eclipse.moquette.interception.InterceptHandler;
+import org.eclipse.moquette.proto.messages.PublishMessage;
 import org.eclipse.moquette.server.config.IConfig;
 import org.eclipse.moquette.spi.IMessagesStore;
 import org.eclipse.moquette.spi.ISessionsStore;
@@ -32,6 +33,7 @@ import java.lang.reflect.Method;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
+
 import static org.eclipse.moquette.commons.Constants.*;
 
 /**
@@ -68,6 +70,11 @@ public class SimpleMessaging {
 			INSTANCE = new SimpleMessaging();
 		}
 		return INSTANCE;
+	}
+	
+	// push message to client
+	public void publish(String clientID, PublishMessage msg) {
+		processor.executePublish(clientID, msg);
 	}
 	
 	public ProtocolProcessor init(IConfig configProps) {

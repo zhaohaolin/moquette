@@ -15,17 +15,33 @@
  */
 package org.eclipse.moquette.server.netty;
 
+import static org.eclipse.moquette.proto.messages.AbstractMessage.CONNECT;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.DISCONNECT;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.PINGREQ;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.PUBACK;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.PUBCOMP;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.PUBLISH;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.PUBREC;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.PUBREL;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.SUBSCRIBE;
+import static org.eclipse.moquette.proto.messages.AbstractMessage.UNSUBSCRIBE;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-
 import io.netty.handler.codec.CorruptedFrameException;
-import org.eclipse.moquette.proto.messages.*;
-import org.eclipse.moquette.spi.IMessaging;
+
 import org.eclipse.moquette.proto.Utils;
-
-import static org.eclipse.moquette.proto.messages.AbstractMessage.*;
-
+import org.eclipse.moquette.proto.messages.AbstractMessage;
+import org.eclipse.moquette.proto.messages.ConnectMessage;
+import org.eclipse.moquette.proto.messages.DisconnectMessage;
+import org.eclipse.moquette.proto.messages.PingRespMessage;
+import org.eclipse.moquette.proto.messages.PubAckMessage;
+import org.eclipse.moquette.proto.messages.PubCompMessage;
+import org.eclipse.moquette.proto.messages.PubRecMessage;
+import org.eclipse.moquette.proto.messages.PubRelMessage;
+import org.eclipse.moquette.proto.messages.PublishMessage;
+import org.eclipse.moquette.proto.messages.SubscribeMessage;
+import org.eclipse.moquette.proto.messages.UnsubscribeMessage;
 import org.eclipse.moquette.spi.impl.ProtocolProcessor;
 import org.eclipse.moquette.spi.impl.events.LostConnectionEvent;
 import org.slf4j.Logger;

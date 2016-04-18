@@ -39,8 +39,6 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
-import io.netty.util.internal.logging.InternalLoggerFactory;
-import io.netty.util.internal.logging.Slf4JLoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -125,14 +123,18 @@ public class NettyAcceptor implements ServerAcceptor {
 	private MessageMetricsCollector	metricsCollector		= new MessageMetricsCollector();
 	
 	@Override
-	public void initialize(ProtocolProcessor processor, IConfig props)
-			throws IOException {
+	public synchronized void initialize(ProtocolProcessor processor,
+			IConfig props) throws IOException {
 		bossGroup = new NioEventLoopGroup();
 		workerGroup = new NioEventLoopGroup();
 		final NettyMQTTHandler handler = new NettyMQTTHandler(processor);
 		
+		// init mqtt
 		initializePlainTCPTransport(handler, props);
+		
+		// init websocket
 		initializeWebSocketTransport(handler, props);
+		
 		String sslTcpPortProp = props
 				.getProperty(Constants.SSL_PORT_PROPERTY_NAME);
 		String wssPortProp = props
@@ -151,14 +153,14 @@ public class NettyAcceptor implements ServerAcceptor {
 	private void initFactory(String host, int port,
 			final PipelineInitializer pipeliner) {
 		ServerBootstrap b = new ServerBootstrap();
-		b.group(bossGroup, workerGroup)
-				.channel(NioServerSocketChannel.class)
-				
-				// option
-				.option(ChannelOption.SO_BACKLOG, 128)
-				.option(ChannelOption.SO_REUSEADDR, true)
-				.option(ChannelOption.TCP_NODELAY, true)
-				.childOption(ChannelOption.SO_KEEPALIVE, true);
+		b.group(bossGroup, workerGroup);
+		b.channel(NioServerSocketChannel.class);
+		
+		// option
+		b.option(ChannelOption.SO_BACKLOG, 128);
+		b.option(ChannelOption.SO_REUSEADDR, true);
+		b.option(ChannelOption.TCP_NODELAY, true);
+		b.childOption(ChannelOption.SO_KEEPALIVE, true);
 		
 		// initalizer
 		b.childHandler(new ChannelInitializer<SocketChannel>() {
@@ -195,8 +197,8 @@ public class NettyAcceptor implements ServerAcceptor {
 				// -------------------
 				// 靠近传输层
 				// -------------------
-				InternalLoggerFactory
-						.setDefaultFactory(new Slf4JLoggerFactory());
+				// InternalLoggerFactory
+				// .setDefaultFactory(new Slf4JLoggerFactory());
 				pipeline.addLast("logger", new LoggingHandler("Netty",
 						LogLevel.DEBUG));
 				
@@ -340,7 +342,7 @@ public class NettyAcceptor implements ServerAcceptor {
 		});
 	}
 	
-	public void close() {
+	public synchronized void close() {
 		if (workerGroup == null) {
 			throw new IllegalStateException(
 					"Invoked close on an Acceptor that wasn't initialized");
@@ -376,19 +378,20 @@ public class NettyAcceptor implements ServerAcceptor {
 	public BytesMetricsCollector getBytesMetricsCollector() {
 		return bytesMetricsCollector;
 	}
-
-	public void setBytesMetricsCollector(BytesMetricsCollector bytesMetricsCollector) {
+	
+	public void setBytesMetricsCollector(
+			BytesMetricsCollector bytesMetricsCollector) {
 		this.bytesMetricsCollector = bytesMetricsCollector;
 	}
-
+	
 	public MessageMetricsCollector getMetricsCollector() {
 		return metricsCollector;
 	}
-
+	
 	public void setMetricsCollector(MessageMetricsCollector metricsCollector) {
 		this.metricsCollector = metricsCollector;
 	}
-
+	
 	private SslHandlerFactory initSSLHandlerFactory(IConfig props) {
 		SslHandlerFactory factory = new SslHandlerFactory(props);
 		return factory.canCreate() ? factory : null;
