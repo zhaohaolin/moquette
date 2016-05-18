@@ -17,6 +17,7 @@ package org.eclipse.moquette.server.netty;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -24,6 +25,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -114,13 +116,13 @@ public class NettyAcceptor implements ServerAcceptor {
 		abstract void init(ChannelPipeline pipeline) throws Exception;
 	}
 	
-	private static final Logger		LOG						= LoggerFactory
-																	.getLogger(NettyAcceptor.class);
+	private static final Logger				LOG						= LoggerFactory
+																			.getLogger(NettyAcceptor.class);
 	
-	private EventLoopGroup			bossGroup;
-	private EventLoopGroup			workerGroup;
-	private BytesMetricsCollector	bytesMetricsCollector	= new BytesMetricsCollector();
-	private MessageMetricsCollector	metricsCollector		= new MessageMetricsCollector();
+	private EventLoopGroup					bossGroup;
+	private EventLoopGroup					workerGroup;
+	private BytesMetricsCollector			bytesMetricsCollector	= new BytesMetricsCollector();
+	private MessageMetricsCollector			metricsCollector		= new MessageMetricsCollector();
 	
 	@Override
 	public synchronized void initialize(ProtocolProcessor processor,
@@ -161,6 +163,7 @@ public class NettyAcceptor implements ServerAcceptor {
 		b.option(ChannelOption.SO_REUSEADDR, true);
 		b.option(ChannelOption.TCP_NODELAY, true);
 		b.childOption(ChannelOption.SO_KEEPALIVE, true);
+		b.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
 		
 		// initalizer
 		b.childHandler(new ChannelInitializer<SocketChannel>() {
