@@ -72,12 +72,96 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
-					<source>${source.version}</source>
-					<target>${target.version}</target>
+					<source>1.7</source>
+					<target>1.7</target>
+					<encoding>UTF-8</encoding>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>2.5</version>
+			</plugin>
+			<!-- jar -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.6</version>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<Built-By>joe.zhao(zhaohaolin@hikvision.com.cn)</Built-By>
+							<Built-At>${maven.build.timestamp}</Built-At>
+							<Specification-Title>${project.artifactId}</Specification-Title>
+							<Specification-Version>${project.version}</Specification-Version>
+							<Specification-Vendor>${software.version}</Specification-Vendor>
+							<Implementation-Title>${project.artifactId}</Implementation-Title>
+							<Implementation-Version>${project.version}-${maven.build.timestamp}</Implementation-Version>
+							<Implementation-Vendor>${software.version}</Implementation-Vendor>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+
+			<!-- source -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.4</version>
+				<configuration>
+					<archive>
+						<manifestEntries>
+							<Built-By>joe.zhao(zhaohaolin@hikvision.com.cn)</Built-By>
+							<Built-At>${maven.build.timestamp}</Built-At>
+							<Specification-Title>${project.artifactId}</Specification-Title>
+							<Specification-Version>${project.version}</Specification-Version>
+							<Specification-Vendor>${software.version}</Specification-Vendor>
+							<Implementation-Title>${project.artifactId}</Implementation-Title>
+							<Implementation-Version>${project.version}-${maven.build.timestamp}</Implementation-Version>
+							<Implementation-Vendor>${software.version}</Implementation-Vendor>
+						</manifestEntries>
+					</archive>
+				</configuration>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- javadoc -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.10.2</version>
+				<configuration>
+					<javadocExecutable>${java.home}/../bin/javadoc</javadocExecutable>
+					<archive>
+						<manifestEntries>
+							<Built-By>joe.zhao(zhaohaolin@hikvision.com.cn)</Built-By>
+							<Built-At>${maven.build.timestamp}</Built-At>
+							<Specification-Title>${project.artifactId}</Specification-Title>
+							<Specification-Version>${project.version}</Specification-Version>
+							<Specification-Vendor>${software.version}</Specification-Vendor>
+							<Implementation-Title>${project.artifactId}</Implementation-Title>
+							<Implementation-Version>${project.version}-${maven.build.timestamp}</Implementation-Version>
+							<Implementation-Vendor>${software.version}</Implementation-Vendor>
+						</manifestEntries>
+					</archive>
+				</configuration>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
