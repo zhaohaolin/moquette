@@ -79,10 +79,16 @@ public class SimpleMessaging {
 	
 	public ProtocolProcessor init(IConfig configProps) {
 		subscriptions = new SubscriptionsStore();
-		return processInit(configProps);
+		return processInit(configProps, null);
 	}
 	
-	private ProtocolProcessor processInit(IConfig props) {
+	public ProtocolProcessor init(IConfig configProps, InterceptHandler handler) {
+		subscriptions = new SubscriptionsStore();
+		return processInit(configProps, handler);
+	}
+	
+	private ProtocolProcessor processInit(IConfig props,
+			InterceptHandler handler) {
 		// TODO use a property to select the storage path
 		MapDBPersistentStore mapStorage = new MapDBPersistentStore(
 				props.getProperty(PERSISTENT_STORE_PROPERTY_NAME, ""));
@@ -92,12 +98,16 @@ public class SimpleMessaging {
 		storageService.initStore();
 		
 		List<InterceptHandler> observers = new ArrayList<>();
+		if (null != handler) {
+			observers.add(handler);
+		}
+		
 		String interceptorClassName = props.getProperty("intercept.handler");
 		if (interceptorClassName != null && !interceptorClassName.isEmpty()) {
 			try {
-				InterceptHandler handler = Class.forName(interceptorClassName)
+				InterceptHandler handler1 = Class.forName(interceptorClassName)
 						.asSubclass(InterceptHandler.class).newInstance();
-				observers.add(handler);
+				observers.add(handler1);
 			} catch (Throwable ex) {
 				LOG.error("Can't load the intercept handler {}", ex);
 			}
