@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.moquette.commons.Constants;
+import org.eclipse.moquette.interception.InterceptHandler;
 import org.eclipse.moquette.parser.netty.MQTTDecoder;
 import org.eclipse.moquette.parser.netty.MQTTEncoder;
 import org.eclipse.moquette.server.config.IConfig;
@@ -67,12 +68,17 @@ public class MQTTServer {
 	private BytesMetricsCollector			bytesMetricsCollector	= new BytesMetricsCollector();
 	private MessageMetricsCollector			metricsCollector		= new MessageMetricsCollector();
 	
+	private InterceptHandler				handler;
+	
 	public synchronized void startServer() throws Exception {
 		// start server
 		Properties configProps = new Properties();
+		
 		final IConfig config = new MemoryConfig(configProps);
+		
+		// set handler
 		final ProtocolProcessor processor = SimpleMessaging.getInstance().init(
-				config);
+				config, handler);
 		
 		if (useLinuxNativeEpoll) {
 			bossGroup = new EpollEventLoopGroup();
@@ -94,6 +100,8 @@ public class MQTTServer {
 		b.option(ChannelOption.SO_BACKLOG, 128);
 		b.option(ChannelOption.SO_REUSEADDR, true);
 		b.option(ChannelOption.TCP_NODELAY, true);
+		b.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+		
 		b.childOption(ChannelOption.SO_KEEPALIVE, true);
 		b.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
 		
@@ -238,6 +246,14 @@ public class MQTTServer {
 	
 	public void setRetryTimeout(long retryTimeout) {
 		this.retryTimeout = retryTimeout;
+	}
+	
+	public InterceptHandler getHandler() {
+		return handler;
+	}
+	
+	public void setHandler(InterceptHandler handler) {
+		this.handler = handler;
 	}
 	
 }
