@@ -15,17 +15,9 @@
  */
 package org.eclipse.moquette.spi.impl;
 
-import org.eclipse.moquette.commons.Constants;
-import org.eclipse.moquette.interception.InterceptHandler;
-import org.eclipse.moquette.proto.messages.PublishMessage;
-import org.eclipse.moquette.server.config.IConfig;
-import org.eclipse.moquette.spi.IMessagesStore;
-import org.eclipse.moquette.spi.ISessionsStore;
-import org.eclipse.moquette.spi.impl.security.*;
-import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
-import org.eclipse.moquette.spi.persistence.MapDBPersistentStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.eclipse.moquette.commons.Constants.ACL_FILE_PROPERTY_NAME;
+import static org.eclipse.moquette.commons.Constants.ALLOW_ANONYMOUS_PROPERTY_NAME;
+import static org.eclipse.moquette.commons.Constants.PASSWORD_FILE_PROPERTY_NAME;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -34,7 +26,22 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.eclipse.moquette.commons.Constants.*;
+import org.eclipse.moquette.commons.Constants;
+import org.eclipse.moquette.interception.InterceptHandler;
+import org.eclipse.moquette.proto.messages.PublishMessage;
+import org.eclipse.moquette.server.config.IConfig;
+import org.eclipse.moquette.spi.IMessagesStore;
+import org.eclipse.moquette.spi.ISessionsStore;
+import org.eclipse.moquette.spi.impl.security.ACLFileParser;
+import org.eclipse.moquette.spi.impl.security.AcceptAllAuthenticator;
+import org.eclipse.moquette.spi.impl.security.DenyAllAuthorizator;
+import org.eclipse.moquette.spi.impl.security.FileAuthenticator;
+import org.eclipse.moquette.spi.impl.security.IAuthenticator;
+import org.eclipse.moquette.spi.impl.security.IAuthorizator;
+import org.eclipse.moquette.spi.impl.security.PermitAllAuthorizator;
+import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 
@@ -82,7 +89,12 @@ public class SimpleMessaging {
 		return processInit(configProps, null);
 	}
 	
-	public ProtocolProcessor init(IConfig configProps, InterceptHandler handler) {
+	public ProtocolProcessor init(final IConfig configProps,
+			final InterceptHandler handler,
+			final IMessagesStore storageService,
+			final ISessionsStore sessionsStore) {
+		this.storageService = storageService;
+		this.sessionsStore = sessionsStore;
 		subscriptions = new SubscriptionsStore();
 		return processInit(configProps, handler);
 	}
@@ -90,10 +102,10 @@ public class SimpleMessaging {
 	private ProtocolProcessor processInit(IConfig props,
 			InterceptHandler handler) {
 		// TODO use a property to select the storage path
-		MapDBPersistentStore mapStorage = new MapDBPersistentStore(
-				props.getProperty(PERSISTENT_STORE_PROPERTY_NAME, ""));
-		storageService = mapStorage;
-		sessionsStore = mapStorage;
+		// MapDBPersistentStore mapStorage = new MapDBPersistentStore(
+		// props.getProperty(PERSISTENT_STORE_PROPERTY_NAME, ""));
+		// storageService = mapStorage;
+		// sessionsStore = mapStorage;
 		
 		storageService.initStore();
 		

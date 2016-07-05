@@ -40,6 +40,8 @@ import org.eclipse.moquette.server.netty.metrics.BytesMetricsHandler;
 import org.eclipse.moquette.server.netty.metrics.MessageMetrics;
 import org.eclipse.moquette.server.netty.metrics.MessageMetricsCollector;
 import org.eclipse.moquette.server.netty.metrics.MessageMetricsHandler;
+import org.eclipse.moquette.spi.IMessagesStore;
+import org.eclipse.moquette.spi.ISessionsStore;
 import org.eclipse.moquette.spi.impl.ProtocolProcessor;
 import org.eclipse.moquette.spi.impl.SimpleMessaging;
 import org.slf4j.Logger;
@@ -67,6 +69,8 @@ public class MQTTServer {
 	
 	private BytesMetricsCollector			bytesMetricsCollector	= new BytesMetricsCollector();
 	private MessageMetricsCollector			metricsCollector		= new MessageMetricsCollector();
+	private IMessagesStore					storageService;
+	private ISessionsStore					sessionsStore;
 	
 	private InterceptHandler				handler;
 	
@@ -78,7 +82,7 @@ public class MQTTServer {
 		
 		// set handler
 		final ProtocolProcessor processor = SimpleMessaging.getInstance().init(
-				config, handler);
+				config, handler, this.storageService, this.sessionsStore);
 		
 		if (useLinuxNativeEpoll) {
 			bossGroup = new EpollEventLoopGroup();
@@ -254,6 +258,14 @@ public class MQTTServer {
 	
 	public void setHandler(InterceptHandler handler) {
 		this.handler = handler;
+	}
+	
+	public void setStorageService(IMessagesStore storageService) {
+		this.storageService = storageService;
+	}
+	
+	public void setSessionsStore(ISessionsStore sessionsStore) {
+		this.sessionsStore = sessionsStore;
 	}
 	
 }
