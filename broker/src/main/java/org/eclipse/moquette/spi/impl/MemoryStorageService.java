@@ -15,20 +15,26 @@
  */
 package org.eclipse.moquette.spi.impl;
 
-import java.nio.ByteBuffer;
-import java.util.*;
+import static org.eclipse.moquette.spi.impl.Utils.defaultGet;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.eclipse.moquette.proto.messages.AbstractMessage;
 import org.eclipse.moquette.spi.IMatchingCondition;
 import org.eclipse.moquette.spi.IMessagesStore;
+import org.eclipse.moquette.spi.ISessionsStore;
 import org.eclipse.moquette.spi.impl.events.PublishEvent;
 import org.eclipse.moquette.spi.impl.subscriptions.Subscription;
-import org.eclipse.moquette.proto.messages.AbstractMessage;
-
-import org.eclipse.moquette.spi.ISessionsStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.eclipse.moquette.spi.impl.Utils.defaultGet;
 
 /**
  */
@@ -46,6 +52,7 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 	private static final Logger				LOG						= LoggerFactory
 																			.getLogger(MemoryStorageService.class);
 	
+	@Override
 	public void initStore() {
 		//
 	}
@@ -218,6 +225,11 @@ public class MemoryStorageService implements IMessagesStore, ISessionsStore {
 		persistentSubscriptions.put(clientID, subscriptions);
 	}
 	
+	@Override
+	public Set<Subscription> getSubscriptions(String clientID) {
+		return persistentSubscriptions.get(clientID);
+	}
+
 	@Override
 	public boolean contains(String clientID) {
 		return persistentSubscriptions.containsKey(clientID);

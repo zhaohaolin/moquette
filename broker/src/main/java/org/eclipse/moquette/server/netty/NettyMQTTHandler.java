@@ -68,7 +68,8 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 	}
 	
 	@Override
-	public void channelRead(ChannelHandlerContext ctx, Object message) {
+	public void channelRead(final ChannelHandlerContext ctx,
+			final Object message) {
 		AbstractMessage msg = (AbstractMessage) message;
 		LOG.info("Received a message of type {}",
 				Utils.msgType2String(msg.getMessageType()));

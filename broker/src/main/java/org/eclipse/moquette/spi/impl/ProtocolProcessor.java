@@ -145,6 +145,7 @@ public class ProtocolProcessor {
 	
 	public void processConnect(ServerChannel session, ConnectMessage msg) {
 		LOG.debug("CONNECT for client <{}>", msg.getClientID());
+		// bad proto
 		if (msg.getProtocolVersion() != VERSION_3_1
 				&& msg.getProtocolVersion() != VERSION_3_1_1) {
 			ConnAckMessage badProto = new ConnAckMessage();
@@ -155,6 +156,7 @@ public class ProtocolProcessor {
 			return;
 		}
 		
+		// clientId is null or empty
 		if (msg.getClientID() == null || msg.getClientID().length() == 0) {
 			ConnAckMessage okResp = new ConnAckMessage();
 			okResp.setReturnCode(ConnAckMessage.IDENTIFIER_REJECTED);

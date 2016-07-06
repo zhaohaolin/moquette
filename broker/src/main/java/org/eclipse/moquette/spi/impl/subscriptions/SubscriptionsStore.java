@@ -16,7 +16,13 @@
 package org.eclipse.moquette.spi.impl.subscriptions;
 
 import java.text.ParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -94,7 +100,7 @@ public class SubscriptionsStore {
 	private AtomicReference<TreeNode>	subscriptions	= new AtomicReference<>(
 																new TreeNode(
 																		null));
-	private ISessionsStore				m_sessionsStore;
+	private ISessionsStore				sessionsStore;
 	private static final Logger			LOG				= LoggerFactory
 																.getLogger(SubscriptionsStore.class);
 	
@@ -102,10 +108,11 @@ public class SubscriptionsStore {
 	 * Initialize the subscription tree with the list of subscriptions.
 	 * Maintained for compatibility reasons.
 	 */
-	public void init(ISessionsStore sessionsStore) {
+	public void init(final ISessionsStore sessionsStore) {
 		LOG.debug("init invoked");
-		m_sessionsStore = sessionsStore;
-		List<Subscription> subscriptions = sessionsStore.listAllSubscriptions();
+		this.sessionsStore = sessionsStore;
+		final List<Subscription> subscriptions = sessionsStore
+				.listAllSubscriptions();
 		// reload any subscriptions persisted
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(
@@ -174,7 +181,7 @@ public class SubscriptionsStore {
 	}
 	
 	public void add(Subscription newSubscription) {
-		m_sessionsStore.addNewSubscription(newSubscription);
+		sessionsStore.addNewSubscription(newSubscription);
 		addDirect(newSubscription);
 	}
 	
@@ -202,7 +209,7 @@ public class SubscriptionsStore {
 			// spin lock repeating till we can, swap root, if can't swap just
 			// re-do the operation
 		} while (!subscriptions.compareAndSet(oldRoot, couple.root));
-		m_sessionsStore.removeSubscription(topic, clientID);
+		sessionsStore.removeSubscription(topic, clientID);
 	}
 	
 	/**
@@ -220,7 +227,7 @@ public class SubscriptionsStore {
 			// re-do the operation
 		} while (!subscriptions.compareAndSet(oldRoot, newRoot));
 		// persist the update
-		m_sessionsStore.wipeSubscriptions(clientID);
+		sessionsStore.wipeSubscriptions(clientID);
 	}
 	
 	/**
@@ -241,7 +248,7 @@ public class SubscriptionsStore {
 		
 		// persist the update
 		Set<Subscription> subs = newRoot.findAllByClientID(clientID);
-		m_sessionsStore.updateSubscriptions(clientID, subs);
+		sessionsStore.updateSubscriptions(clientID, subs);
 	}
 	
 	/**
@@ -251,6 +258,15 @@ public class SubscriptionsStore {
 	 */
 	public void activate(String clientID) {
 		LOG.debug("Activating subscriptions for clientID <{}>", clientID);
+		// sync subscriptions modify by zhaohaolin 20160706
+		final Set<Subscription> subscriptionSet = sessionsStore
+				.getSubscriptions(clientID);
+		if (null != subscriptionSet && !subscriptionSet.isEmpty()) {
+			for (Subscription subscription : subscriptionSet) {
+				addDirect(subscription);
+			}
+		}
+		
 		TreeNode oldRoot;
 		TreeNode newRoot;
 		do {
@@ -262,7 +278,7 @@ public class SubscriptionsStore {
 		
 		// persist the update
 		Set<Subscription> subs = newRoot.findAllByClientID(clientID);
-		m_sessionsStore.updateSubscriptions(clientID, subs);
+		sessionsStore.updateSubscriptions(clientID, subs);
 	}
 	
 	/**

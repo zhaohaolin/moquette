@@ -16,27 +16,35 @@
 
 package org.eclipse.moquette.spi.persistence;
 
+import static org.eclipse.moquette.spi.impl.Utils.defaultGet;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import org.eclipse.moquette.proto.MQTTException;
+import org.eclipse.moquette.proto.messages.AbstractMessage;
 import org.eclipse.moquette.spi.IMatchingCondition;
 import org.eclipse.moquette.spi.IMessagesStore;
 import org.eclipse.moquette.spi.ISessionsStore;
 import org.eclipse.moquette.spi.impl.events.PublishEvent;
 import org.eclipse.moquette.spi.impl.storage.StoredPublishEvent;
 import org.eclipse.moquette.spi.impl.subscriptions.Subscription;
-import org.eclipse.moquette.proto.messages.AbstractMessage;
-
-import static org.eclipse.moquette.spi.impl.Utils.defaultGet;
-
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.*;
 
 /**
  * MapDB main persistence implementation
@@ -195,6 +203,7 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 		persistentMessageStore.put(clientID, events);
 	}
 	
+	@Override
 	public void dropMessagesInSession(String clientID) {
 		persistentMessageStore.remove(clientID);
 	}
@@ -309,6 +318,7 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 		persistentSubscriptions.put(clientID, subscriptions);
 	}
 	
+	@Override
 	public List<Subscription> listAllSubscriptions() {
 		List<Subscription> allSubscriptions = new ArrayList<>();
 		for (Map.Entry<String, Set<Subscription>> entry : persistentSubscriptions
@@ -339,6 +349,11 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 	}
 	
 	@Override
+	public Set<Subscription> getSubscriptions(String clientID) {
+		return persistentSubscriptions.get(clientID);
+	}
+	
+	@Override
 	public void close() {
 		if (this.db.isClosed()) {
 			LOG.debug("already closed");
@@ -366,6 +381,7 @@ public class MapDBPersistentStore implements IMessagesStore, ISessionsStore {
 		qos2Store.remove(publishKey);
 	}
 	
+	@Override
 	public PublishEvent retrieveQoS2Message(String publishKey) {
 		StoredPublishEvent storedEvt = qos2Store.get(publishKey);
 		return convertFromStored(storedEvt);
