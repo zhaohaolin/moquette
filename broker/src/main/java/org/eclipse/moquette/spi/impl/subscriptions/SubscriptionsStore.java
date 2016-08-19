@@ -52,7 +52,10 @@ public class SubscriptionsStore {
 	 * */
 	public static boolean validate(String topicFilter) {
 		try {
-			parseTopic(topicFilter);
+			List<Token> list = parseTopic(topicFilter);
+			if (null == list || list.isEmpty()) {
+				return false;
+			}
 			return true;
 		} catch (ParseException pex) {
 			LOG.info("Bad matching topic filter <{}>", topicFilter);

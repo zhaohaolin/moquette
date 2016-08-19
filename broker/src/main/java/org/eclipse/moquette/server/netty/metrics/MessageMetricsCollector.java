@@ -36,7 +36,15 @@ public class MessageMetricsCollector {
 		readMsgs.getAndAdd(count);
 	}
 	
+	public long getReadMessages() {
+		return readMsgs.get();
+	}
+	
 	public void sumWroteMessages(long count) {
 		wroteMsgs.getAndAdd(count);
+	}
+	
+	public long getWriteMsgs() {
+		return wroteMsgs.get();
 	}
 }

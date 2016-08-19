@@ -94,7 +94,7 @@ public class MQTTServer {
 			channelClass = NioServerSocketChannel.class;
 		}
 		
-		final NettyMQTTHandler handler = new NettyMQTTHandler(processor);
+		final NettyMQTTHandler mqttHandler = new NettyMQTTHandler(processor);
 		
 		ServerBootstrap b = new ServerBootstrap();
 		b.group(bossGroup, workerGroup);
@@ -130,13 +130,18 @@ public class MQTTServer {
 				pipeline.addAfter("idleStateHandler", "idleEventHandler",
 						timeoutHandler);
 				
+				// bytemetrics
 				pipeline.addFirst("bytemetrics", new BytesMetricsHandler(
 						bytesMetricsCollector));
+				
 				pipeline.addLast("decoder", new MQTTDecoder());
 				pipeline.addLast("encoder", new MQTTEncoder());
+				
+				// metricsCollector
 				pipeline.addLast("metrics", new MessageMetricsHandler(
 						metricsCollector));
-				pipeline.addLast("handler", handler);
+				
+				pipeline.addLast("handler", mqttHandler);
 				// -------------------
 				// 靠近应用层
 				// -------------------

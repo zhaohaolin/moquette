@@ -36,7 +36,16 @@ public class BytesMetricsCollector {
 		readBytes.getAndAdd(count);
 	}
 	
+	public long readBytes() {
+		return readBytes.get();
+	}
+	
 	public void sumWroteBytes(long count) {
 		wroteBytes.getAndAdd(count);
 	}
+	
+	public long writeBytes() {
+		return wroteBytes.get();
+	}
+	
 }
