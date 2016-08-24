@@ -50,13 +50,13 @@ public class SubscriptionsStoreTest {
 	
 	@Test
 	public void testParseTopic() throws ParseException {
-		List<Token> tokens = SubscriptionsStore.parseTopic("finance/stock/ibm");
+		List<Token> tokens = SubscriptionUtils.parseTopic("finance/stock/ibm");
 		assertEqualsSeq(asArray("finance", "stock", "ibm"), tokens);
 		
-		tokens = SubscriptionsStore.parseTopic("/finance/stock/ibm");
+		tokens = SubscriptionUtils.parseTopic("/finance/stock/ibm");
 		assertEqualsSeq(asArray(Token.EMPTY, "finance", "stock", "ibm"), tokens);
 		
-		tokens = SubscriptionsStore.parseTopic("/");
+		tokens = SubscriptionUtils.parseTopic("/");
 		assertEqualsSeq(asArray(Token.EMPTY, Token.EMPTY), tokens);
 	}
 	
@@ -67,45 +67,45 @@ public class SubscriptionsStoreTest {
 	
 	@Test
 	public void testParseTopicMultiValid() throws ParseException {
-		List<Token> tokens = SubscriptionsStore.parseTopic("finance/stock/#");
+		List<Token> tokens = SubscriptionUtils.parseTopic("finance/stock/#");
 		assertEqualsSeq(asArray("finance", "stock", Token.MULTI), tokens);
 		
-		tokens = SubscriptionsStore.parseTopic("#");
+		tokens = SubscriptionUtils.parseTopic("#");
 		assertEqualsSeq(asArray(Token.MULTI), tokens);
 	}
 	
 	@Test(expected = ParseException.class)
 	public void testParseTopicMultiInTheMiddleNotValid() throws ParseException {
-		SubscriptionsStore.parseTopic("finance/#/closingprice");
+		SubscriptionUtils.parseTopic("finance/#/closingprice");
 	}
 	
 	@Test(expected = ParseException.class)
 	public void testParseTopicMultiNotAfterSeparatorNotValid()
 			throws ParseException {
-		SubscriptionsStore.parseTopic("finance#");
+		SubscriptionUtils.parseTopic("finance#");
 	}
 	
 	@Test(expected = ParseException.class)
 	public void testParseTopicMultiNotAlone() throws ParseException {
-		SubscriptionsStore.parseTopic("/finance/#closingprice");
+		SubscriptionUtils.parseTopic("/finance/#closingprice");
 	}
 	
 	@Test
 	public void testParseTopicSingleValid() throws ParseException {
-		List<Token> tokens = SubscriptionsStore.parseTopic("finance/stock/+");
+		List<Token> tokens = SubscriptionUtils.parseTopic("finance/stock/+");
 		assertEqualsSeq(asArray("finance", "stock", Token.SINGLE), tokens);
 		
-		tokens = SubscriptionsStore.parseTopic("+");
+		tokens = SubscriptionUtils.parseTopic("+");
 		assertEqualsSeq(asArray(Token.SINGLE), tokens);
 		
-		tokens = SubscriptionsStore.parseTopic("finance/+/ibm");
+		tokens = SubscriptionUtils.parseTopic("finance/+/ibm");
 		assertEqualsSeq(asArray("finance", Token.SINGLE, "ibm"), tokens);
 	}
 	
 	@Test(expected = ParseException.class)
 	public void testParseTopicSingleNotAferSeparatorNotValid()
 			throws ParseException {
-		SubscriptionsStore.parseTopic("finance+");
+		SubscriptionUtils.parseTopic("finance+");
 	}
 	
 	@Test
@@ -318,55 +318,55 @@ public class SubscriptionsStoreTest {
 	
 	@Test
 	public void testMatchTopics_simple() {
-		assertTrue(SubscriptionsStore.matchTopics("/", "/"));
-		assertTrue(SubscriptionsStore.matchTopics("/finance", "/finance"));
+		assertTrue(SubscriptionUtils.matchTopics("/", "/"));
+		assertTrue(SubscriptionUtils.matchTopics("/finance", "/finance"));
 	}
 	
 	@Test
 	public void testMatchTopics_multi() {
-		assertTrue(SubscriptionsStore.matchTopics("finance", "#"));
-		assertTrue(SubscriptionsStore.matchTopics("finance", "finance/#"));
-		assertTrue(SubscriptionsStore.matchTopics("finance/stock", "finance/#"));
-		assertTrue(SubscriptionsStore.matchTopics("finance/stock/ibm",
+		assertTrue(SubscriptionUtils.matchTopics("finance", "#"));
+		assertTrue(SubscriptionUtils.matchTopics("finance", "finance/#"));
+		assertTrue(SubscriptionUtils.matchTopics("finance/stock", "finance/#"));
+		assertTrue(SubscriptionUtils.matchTopics("finance/stock/ibm",
 				"finance/#"));
 	}
 	
 	@Test
 	public void testMatchTopics_single() {
-		assertTrue(SubscriptionsStore.matchTopics("finance", "+"));
-		assertTrue(SubscriptionsStore.matchTopics("finance/stock", "finance/+"));
-		assertFalse(SubscriptionsStore.matchTopics("finance", "finance/+"));
-		assertTrue(SubscriptionsStore.matchTopics("/finance", "/+"));
-		assertFalse(SubscriptionsStore.matchTopics("/finance", "+"));
-		assertTrue(SubscriptionsStore.matchTopics("/finance", "+/+"));
-		assertTrue(SubscriptionsStore.matchTopics("/finance/stock/ibm",
+		assertTrue(SubscriptionUtils.matchTopics("finance", "+"));
+		assertTrue(SubscriptionUtils.matchTopics("finance/stock", "finance/+"));
+		assertFalse(SubscriptionUtils.matchTopics("finance", "finance/+"));
+		assertTrue(SubscriptionUtils.matchTopics("/finance", "/+"));
+		assertFalse(SubscriptionUtils.matchTopics("/finance", "+"));
+		assertTrue(SubscriptionUtils.matchTopics("/finance", "+/+"));
+		assertTrue(SubscriptionUtils.matchTopics("/finance/stock/ibm",
 				"/finance/+/ibm"));
-		assertTrue(SubscriptionsStore.matchTopics("/", "+/+"));
-		assertTrue(SubscriptionsStore.matchTopics("sport/", "sport/+"));
-		assertFalse(SubscriptionsStore.matchTopics("/finance/stock", "+"));
+		assertTrue(SubscriptionUtils.matchTopics("/", "+/+"));
+		assertTrue(SubscriptionUtils.matchTopics("sport/", "sport/+"));
+		assertFalse(SubscriptionUtils.matchTopics("/finance/stock", "+"));
 	}
 	
 	@Test
 	public void rogerLightMatchTopics() {
-		assertTrue(SubscriptionsStore.matchTopics("foo/bar", "foo/bar"));
-		assertTrue(SubscriptionsStore.matchTopics("foo/bar", "foo/+"));
-		assertTrue(SubscriptionsStore.matchTopics("foo/bar/baz", "foo/+/baz"));
-		assertTrue(SubscriptionsStore.matchTopics("foo/bar/baz", "foo/+/#"));
-		assertTrue(SubscriptionsStore.matchTopics("foo/bar/baz", "#"));
+		assertTrue(SubscriptionUtils.matchTopics("foo/bar", "foo/bar"));
+		assertTrue(SubscriptionUtils.matchTopics("foo/bar", "foo/+"));
+		assertTrue(SubscriptionUtils.matchTopics("foo/bar/baz", "foo/+/baz"));
+		assertTrue(SubscriptionUtils.matchTopics("foo/bar/baz", "foo/+/#"));
+		assertTrue(SubscriptionUtils.matchTopics("foo/bar/baz", "#"));
 		
-		assertFalse(SubscriptionsStore.matchTopics("foo", "foo/bar"));
-		assertFalse(SubscriptionsStore.matchTopics("foo/bar/baz", "foo/+"));
-		assertFalse(SubscriptionsStore.matchTopics("foo/bar/bar", "foo/+/baz"));
-		assertFalse(SubscriptionsStore.matchTopics("fo2/bar/baz", "foo/+/#"));
+		assertFalse(SubscriptionUtils.matchTopics("foo", "foo/bar"));
+		assertFalse(SubscriptionUtils.matchTopics("foo/bar/baz", "foo/+"));
+		assertFalse(SubscriptionUtils.matchTopics("foo/bar/bar", "foo/+/baz"));
+		assertFalse(SubscriptionUtils.matchTopics("fo2/bar/baz", "foo/+/#"));
 		
-		assertTrue(SubscriptionsStore.matchTopics("/foo/bar", "#"));
-		assertTrue(SubscriptionsStore.matchTopics("/foo/bar", "/#"));
-		assertFalse(SubscriptionsStore.matchTopics("foo/bar", "/#"));
+		assertTrue(SubscriptionUtils.matchTopics("/foo/bar", "#"));
+		assertTrue(SubscriptionUtils.matchTopics("/foo/bar", "/#"));
+		assertFalse(SubscriptionUtils.matchTopics("foo/bar", "/#"));
 		
-		assertTrue(SubscriptionsStore.matchTopics("foo//bar", "foo//bar"));
-		assertTrue(SubscriptionsStore.matchTopics("foo//bar", "foo//+"));
-		assertTrue(SubscriptionsStore.matchTopics("foo///baz", "foo/+/+/baz"));
-		assertTrue(SubscriptionsStore.matchTopics("foo/bar/", "foo/bar/+"));
+		assertTrue(SubscriptionUtils.matchTopics("foo//bar", "foo//bar"));
+		assertTrue(SubscriptionUtils.matchTopics("foo//bar", "foo//+"));
+		assertTrue(SubscriptionUtils.matchTopics("foo///baz", "foo/+/+/baz"));
+		assertTrue(SubscriptionUtils.matchTopics("foo/bar/", "foo/bar/+"));
 	}
 	
 	@Test
@@ -441,8 +441,7 @@ public class SubscriptionsStoreTest {
 	@Test
 	public void testRecreatePath_emptyRoot() {
 		TreeNode oldRoot = new TreeNode(null);
-		final SubscriptionsStore.NodeCouple resp = store.recreatePath(
-				"/finance", oldRoot);
+		final NodeCouple resp = store.recreatePath("/finance", oldRoot);
 		
 		// Verify
 		assertNotNull(resp.root);
@@ -455,10 +454,8 @@ public class SubscriptionsStoreTest {
 	@Test
 	public void testRecreatePath_1layer_tree() {
 		TreeNode oldRoot = new TreeNode(null);
-		final SubscriptionsStore.NodeCouple respFinance = store.recreatePath(
-				"/finance", oldRoot);
-		final SubscriptionsStore.NodeCouple respPlus = store.recreatePath("/+",
-				respFinance.root);
+		final NodeCouple respFinance = store.recreatePath("/finance", oldRoot);
+		final NodeCouple respPlus = store.recreatePath("/+", respFinance.root);
 		
 		// Verify
 		assertNotNull(respPlus.root);

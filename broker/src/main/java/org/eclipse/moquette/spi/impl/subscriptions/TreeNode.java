@@ -15,22 +15,36 @@
  */
 package org.eclipse.moquette.spi.impl.subscriptions;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 
 class TreeNode {
 	
 	private class ClientIDComparator implements Comparator<Subscription> {
 		
+		@Override
 		public int compare(Subscription o1, Subscription o2) {
 			return o1.getClientId().compareTo(o2.getClientId());
 		}
 		
 	}
 	
+	// parent treenode
 	TreeNode			parent;
+	
+	// token
 	Token				token;
+	
+	// children
 	List<TreeNode>		children		= new ArrayList<TreeNode>();
+	
+	// subscriptions
 	List<Subscription>	subscriptions	= new ArrayList<Subscription>();
 	
 	TreeNode(TreeNode parent) {

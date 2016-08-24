@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
+import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,7 +142,7 @@ class AuthorizationsCollector implements IAuthorizator {
 				String substitutedTopic = auth.topic.replace("%c", client)
 						.replace("%u", username);
 				if (auth.grant(permission)) {
-					if (SubscriptionsStore.matchTopics(topic, substitutedTopic)) {
+					if (SubscriptionUtils.matchTopics(topic, substitutedTopic)) {
 						return true;
 					}
 				}
@@ -164,7 +164,7 @@ class AuthorizationsCollector implements IAuthorizator {
 			Authorization.Permission permission) {
 		for (Authorization auth : auths) {
 			if (auth.grant(permission)) {
-				if (SubscriptionsStore.matchTopics(topic, auth.topic)) {
+				if (SubscriptionUtils.matchTopics(topic, auth.topic)) {
 					return true;
 				}
 			}
