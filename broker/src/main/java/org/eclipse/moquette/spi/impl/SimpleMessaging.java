@@ -32,6 +32,7 @@ import org.eclipse.moquette.proto.messages.PublishMessage;
 import org.eclipse.moquette.server.config.IConfig;
 import org.eclipse.moquette.spi.IMessagesStore;
 import org.eclipse.moquette.spi.ISessionsStore;
+import org.eclipse.moquette.spi.ISubscriptionsStore;
 import org.eclipse.moquette.spi.impl.security.ACLFileParser;
 import org.eclipse.moquette.spi.impl.security.AcceptAllAuthenticator;
 import org.eclipse.moquette.spi.impl.security.DenyAllAuthorizator;
@@ -58,8 +59,7 @@ public class SimpleMessaging {
 	private static final Logger		LOG			= LoggerFactory
 														.getLogger(SimpleMessaging.class);
 	
-	private SubscriptionsStore		subscriptions;
-	
+	private ISubscriptionsStore		subscriptions;
 	private IMessagesStore			storageService;
 	private ISessionsStore			sessionsStore;
 	
@@ -92,10 +92,11 @@ public class SimpleMessaging {
 	public ProtocolProcessor init(final IConfig configProps,
 			final InterceptHandler handler,
 			final IMessagesStore storageService,
-			final ISessionsStore sessionsStore) {
+			final ISessionsStore sessionsStore,
+			ISubscriptionsStore subscriptions) {
 		this.storageService = storageService;
 		this.sessionsStore = sessionsStore;
-		subscriptions = new SubscriptionsStore();
+		this.subscriptions = subscriptions;
 		return processInit(configProps, handler);
 	}
 	
@@ -109,7 +110,7 @@ public class SimpleMessaging {
 		
 		storageService.initStore();
 		
-		List<InterceptHandler> observers = new ArrayList<>();
+		List<InterceptHandler> observers = new ArrayList<InterceptHandler>();
 		if (null != handler) {
 			observers.add(handler);
 		}

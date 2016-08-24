@@ -27,6 +27,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.moquette.spi.ISessionsStore;
+import org.eclipse.moquette.spi.ISubscriptionsStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @author andrea
  */
-public class SubscriptionsStore {
+public class SubscriptionsStore implements ISubscriptionsStore {
 	
 	private AtomicReference<TreeNode>	subscriptions	= new AtomicReference<TreeNode>(
 																new TreeNode(
@@ -48,6 +49,7 @@ public class SubscriptionsStore {
 	 * Initialize the subscription tree with the list of subscriptions.
 	 * Maintained for compatibility reasons.
 	 */
+	@Override
 	public void init(final ISessionsStore sessionsStore) {
 		LOG.debug("init invoked");
 		this.sessionsStore = sessionsStore;
@@ -119,11 +121,13 @@ public class SubscriptionsStore {
 		return new NodeCouple(newRoot, current);
 	}
 	
+	@Override
 	public void add(Subscription newSubscription) {
 		sessionsStore.addNewSubscription(newSubscription);
 		addDirect(newSubscription);
 	}
 	
+	@Override
 	public void removeSubscription(String topic, String clientID) {
 		TreeNode oldRoot;
 		NodeCouple couple;
@@ -156,6 +160,7 @@ public class SubscriptionsStore {
 	 * It's a mutating structure operation so create a new subscription tree
 	 * (partial or total).
 	 */
+	@Override
 	public void removeForClient(String clientID) {
 		TreeNode oldRoot;
 		TreeNode newRoot;
@@ -174,6 +179,7 @@ public class SubscriptionsStore {
 	 * It's a mutating structure operation so create a new subscription tree
 	 * (partial or total).
 	 */
+	@Override
 	public void deactivate(String clientID) {
 		LOG.debug("Disactivating subscriptions for clientID <{}>", clientID);
 		TreeNode oldRoot;
@@ -195,6 +201,7 @@ public class SubscriptionsStore {
 	 * It's a mutating structure operation so create a new subscription tree
 	 * (partial or total).
 	 */
+	@Override
 	public void activate(String clientID) {
 		LOG.debug("Activating subscriptions for clientID <{}>", clientID);
 		
@@ -229,6 +236,7 @@ public class SubscriptionsStore {
 	 * Topic string can't contain character # and + because they are reserved to
 	 * listeners subscriptions, and not topic publishing.
 	 */
+	@Override
 	public List<Subscription> matches(String topic) {
 		List<Token> tokens;
 		try {
@@ -245,7 +253,7 @@ public class SubscriptionsStore {
 		
 		// remove the overlapping subscriptions, selecting ones with greatest
 		// qos
-		Map<String, Subscription> subsForClient = new HashMap<>();
+		Map<String, Subscription> subsForClient = new HashMap<String, Subscription>();
 		for (Subscription sub : matchingSubs) {
 			Subscription existingSub = subsForClient.get(sub.getClientId());
 			// update the selected subscriptions if not present or if has a
@@ -270,6 +278,7 @@ public class SubscriptionsStore {
 		return subscriptions.get().size();
 	}
 	
+	@Override
 	public String dumpTree() {
 		DumpTreeVisitor visitor = new DumpTreeVisitor();
 		bfsVisit(subscriptions.get(), visitor, 0);

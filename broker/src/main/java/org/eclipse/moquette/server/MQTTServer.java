@@ -42,6 +42,7 @@ import org.eclipse.moquette.server.netty.metrics.MessageMetricsCollector;
 import org.eclipse.moquette.server.netty.metrics.MessageMetricsHandler;
 import org.eclipse.moquette.spi.IMessagesStore;
 import org.eclipse.moquette.spi.ISessionsStore;
+import org.eclipse.moquette.spi.ISubscriptionsStore;
 import org.eclipse.moquette.spi.impl.ProtocolProcessor;
 import org.eclipse.moquette.spi.impl.SimpleMessaging;
 import org.slf4j.Logger;
@@ -71,6 +72,7 @@ public class MQTTServer {
 	private MessageMetricsCollector			metricsCollector		= new MessageMetricsCollector();
 	private IMessagesStore					storageService;
 	private ISessionsStore					sessionsStore;
+	private ISubscriptionsStore				subscriptions;
 	
 	private InterceptHandler				handler;
 	
@@ -81,8 +83,20 @@ public class MQTTServer {
 		final IConfig config = new MemoryConfig(configProps);
 		
 		// set handler
+		if (null == this.storageService) {
+			throw new Exception("storageService is null. instance of it.");
+		}
+		if (null == this.sessionsStore) {
+			throw new Exception("sessionsStore is null. instance of it.");
+		}
+		if (null == this.subscriptions) {
+			throw new Exception("subscriptions is null. instance of it.");
+		}
+		
+		// init processor
 		final ProtocolProcessor processor = SimpleMessaging.getInstance().init(
-				config, handler, this.storageService, this.sessionsStore);
+				config, handler, this.storageService, this.sessionsStore,
+				this.subscriptions);
 		
 		if (useLinuxNativeEpoll) {
 			bossGroup = new EpollEventLoopGroup();
@@ -271,6 +285,10 @@ public class MQTTServer {
 	
 	public void setSessionsStore(ISessionsStore sessionsStore) {
 		this.sessionsStore = sessionsStore;
+	}
+	
+	public void setSubscriptions(ISubscriptionsStore subscriptions) {
+		this.subscriptions = subscriptions;
 	}
 	
 }

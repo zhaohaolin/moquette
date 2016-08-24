@@ -44,6 +44,7 @@ import org.eclipse.moquette.server.netty.NettyChannel;
 import org.eclipse.moquette.spi.IMatchingCondition;
 import org.eclipse.moquette.spi.IMessagesStore;
 import org.eclipse.moquette.spi.ISessionsStore;
+import org.eclipse.moquette.spi.ISubscriptionsStore;
 import org.eclipse.moquette.spi.impl.events.LostConnectionEvent;
 import org.eclipse.moquette.spi.impl.events.PubAckEvent;
 import org.eclipse.moquette.spi.impl.events.PublishEvent;
@@ -51,7 +52,6 @@ import org.eclipse.moquette.spi.impl.security.IAuthenticator;
 import org.eclipse.moquette.spi.impl.security.IAuthorizator;
 import org.eclipse.moquette.spi.impl.subscriptions.Subscription;
 import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionUtils;
-import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,20 +98,20 @@ public class ProtocolProcessor {
 		
 	}
 	
-	private static final Logger					LOG			= LoggerFactory
-																	.getLogger(ProtocolProcessor.class);
+	private static final Logger								LOG			= LoggerFactory
+																				.getLogger(ProtocolProcessor.class);
 	
-	private Map<String, ConnectionDescriptor>	clientIDs	= new ConcurrentHashMap<String, ConnectionDescriptor>();
-	private SubscriptionsStore					subscriptions;
-	private boolean								allowAnonymous;
-	private IAuthorizator						authorizator;
-	private IMessagesStore						messagesStore;
-	private ISessionsStore						sessionsStore;
-	private IAuthenticator						authenticator;
-	private BrokerInterceptor					interceptor;
+	private final static Map<String, ConnectionDescriptor>	clientIDs	= new ConcurrentHashMap<String, ConnectionDescriptor>();
+	private ISubscriptionsStore								subscriptions;
+	private boolean											allowAnonymous;
+	private IAuthorizator									authorizator;
+	private IMessagesStore									messagesStore;
+	private ISessionsStore									sessionsStore;
+	private IAuthenticator									authenticator;
+	private BrokerInterceptor								interceptor;
 	
 	// maps clientID to Will testament, if specified on CONNECT
-	private Map<String, WillMessage>			willStore	= new ConcurrentHashMap<>();
+	private Map<String, WillMessage>						willStore	= new ConcurrentHashMap<>();
 	
 	ProtocolProcessor() {
 	}
@@ -129,7 +129,7 @@ public class ProtocolProcessor {
 	 *            subscriptions.
 	 * @param interceptor to notify events to an intercept handler
 	 */
-	void init(SubscriptionsStore subscriptions, IMessagesStore storageService,
+	void init(ISubscriptionsStore subscriptions, IMessagesStore storageService,
 			ISessionsStore sessionsStore, IAuthenticator authenticator,
 			boolean allowAnonymous, IAuthorizator authorizator,
 			BrokerInterceptor interceptor) {
@@ -144,6 +144,7 @@ public class ProtocolProcessor {
 		this.sessionsStore = sessionsStore;
 	}
 	
+	// client connect
 	public void processConnect(ServerChannel session, ConnectMessage msg) {
 		LOG.debug("CONNECT for client <{}>", msg.getClientID());
 		// bad proto
@@ -527,7 +528,7 @@ public class ProtocolProcessor {
 		try {
 			if (clientIDs == null) {
 				throw new RuntimeException(
-						"Internal bad error, found m_clientIDs to null while it should be initialized, somewhere it's overwritten!!");
+						"Internal bad error, found clientIDs to null while it should be initialized, somewhere it's overwritten!!");
 			}
 			LOG.debug("clientIDs are {}", clientIDs);
 			if (clientIDs.get(clientId) == null) {
@@ -610,6 +611,7 @@ public class ProtocolProcessor {
 		messagesStore.cleanTemporaryPublish(clientID, messageID);
 	}
 	
+	// disconnect
 	public void processDisconnect(ServerChannel session, DisconnectMessage msg)
 			throws InterruptedException {
 		String clientID = (String) session
@@ -634,6 +636,7 @@ public class ProtocolProcessor {
 		interceptor.notifyClientDisconnected(clientID);
 	}
 	
+	// connection lost
 	public void processConnectionLost(LostConnectionEvent evt) {
 		String clientID = evt.clientID;
 		// If already removed a disconnect message was already processed for
@@ -687,6 +690,7 @@ public class ProtocolProcessor {
 		session.write(ackMessage);
 	}
 	
+	// subscribe
 	public void processSubscribe(ServerChannel session, SubscribeMessage msg) {
 		String clientID = (String) session
 				.getAttribute(NettyChannel.ATTR_KEY_CLIENTID);
@@ -702,10 +706,9 @@ public class ProtocolProcessor {
 		for (SubscribeMessage.Couple req : msg.subscriptions()) {
 			AbstractMessage.QOSType qos = AbstractMessage.QOSType.valueOf(req
 					.getQos());
-			Subscription newSubscription = new Subscription(clientID,
+			Subscription newSub = new Subscription(clientID,
 					req.getTopicFilter(), qos, cleanSession);
-			boolean valid = subscribeSingleTopic(newSubscription,
-					req.getTopicFilter());
+			boolean valid = subscribeSingleTopic(newSub, req.getTopicFilter());
 			ackMessage.addType(valid ? qos : AbstractMessage.QOSType.FAILURE);
 		}
 		
