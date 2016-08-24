@@ -50,6 +50,7 @@ import org.eclipse.moquette.spi.impl.events.PublishEvent;
 import org.eclipse.moquette.spi.impl.security.IAuthenticator;
 import org.eclipse.moquette.spi.impl.security.IAuthorizator;
 import org.eclipse.moquette.spi.impl.subscriptions.Subscription;
+import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionUtils;
 import org.eclipse.moquette.spi.impl.subscriptions.SubscriptionsStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -663,7 +664,7 @@ public class ProtocolProcessor {
 				topics, clientID);
 		
 		for (String topic : topics) {
-			boolean validTopic = SubscriptionsStore.validate(topic);
+			boolean validTopic = SubscriptionUtils.validate(topic);
 			if (!validTopic) {
 				// close the connection, not valid topicFilter is a protocol
 				// violation
@@ -717,7 +718,7 @@ public class ProtocolProcessor {
 		LOG.info("<{}> subscribed to topic <{}> with QoS {}", newSubscription
 				.getClientId(), topic, AbstractMessage.QOSType
 				.formatQoS(newSubscription.getRequestedQos()));
-		boolean validTopic = SubscriptionsStore.validate(newSubscription
+		boolean validTopic = SubscriptionUtils.validate(newSubscription
 				.getTopicFilter());
 		if (!validTopic) {
 			// send SUBACK with 0x80 for this topic filter
@@ -733,7 +734,7 @@ public class ProtocolProcessor {
 				.searchMatching(new IMatchingCondition() {
 					@Override
 					public boolean match(String key) {
-						return SubscriptionsStore.matchTopics(key, topic);
+						return SubscriptionUtils.matchTopics(key, topic);
 					}
 				});
 		
