@@ -261,7 +261,12 @@ public class SubscriptionsStore {
 	 */
 	public void activate(String clientID) {
 		LOG.debug("Activating subscriptions for clientID <{}>", clientID);
+		// sync subscriptions modify by zhaohaolin 20160824
+		// remove
+		removeForClient(clientID);
+		
 		// sync subscriptions modify by zhaohaolin 20160706
+		// add
 		final Set<Subscription> subscriptionSet = sessionsStore
 				.getSubscriptions(clientID);
 		if (null != subscriptionSet && !subscriptionSet.isEmpty()) {
