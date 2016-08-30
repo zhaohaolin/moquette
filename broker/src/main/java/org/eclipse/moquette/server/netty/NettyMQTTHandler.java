@@ -151,6 +151,23 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 		} else {
 			LOG.error("Ugly error on networking", cause);
 		}
+		
+		// 异常处理
+		String clientID = (String) NettyUtils.getAttribute(ctx,
+				NettyChannel.ATTR_KEY_CLIENTID);
+		if (clientID != null && !clientID.isEmpty()) {
+			// if the channel was of a correctly connected client, inform
+			// messaging
+			// else it was of a not completed CONNECT message or sessionStolen
+			boolean stolen = false;
+			Boolean stolenAttr = (Boolean) NettyUtils.getAttribute(ctx,
+					NettyChannel.ATTR_KEY_SESSION_STOLEN);
+			if (stolenAttr != null && stolenAttr == Boolean.TRUE) {
+				stolen = stolenAttr;
+			}
+			processor.processConnectionLost(new LostConnectionEvent(clientID,
+					stolen));
+		}
 		ctx.close();
 	}
 }

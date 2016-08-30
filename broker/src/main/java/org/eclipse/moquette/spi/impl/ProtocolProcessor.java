@@ -641,7 +641,7 @@ public class ProtocolProcessor {
 		String clientID = evt.clientID;
 		// If already removed a disconnect message was already processed for
 		// this clientID
-		if (evt.sessionStolen && clientIDs.remove(clientID) != null) {
+		if (clientIDs.remove(clientID) != null && evt.sessionStolen) {
 			// de-activate the subscriptions for this ClientID
 			subscriptions.deactivate(clientID);
 			LOG.info("Lost connection with client <{}>", clientID);

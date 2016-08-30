@@ -21,8 +21,18 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 
+import org.eclipse.moquette.spi.impl.ProtocolProcessor;
+import org.eclipse.moquette.spi.impl.events.LostConnectionEvent;
+
 @Sharable
 public class MoquetteIdleTimoutHandler extends ChannelDuplexHandler {
+	
+	// private IMessaging messaging;
+	private final ProtocolProcessor	processor;
+	
+	public MoquetteIdleTimoutHandler(ProtocolProcessor processor) {
+		this.processor = processor;
+	}
 	
 	@Override
 	public void userEventTriggered(ChannelHandlerContext ctx, Object evt)
@@ -30,6 +40,23 @@ public class MoquetteIdleTimoutHandler extends ChannelDuplexHandler {
 		if (evt instanceof IdleStateEvent) {
 			IdleState e = ((IdleStateEvent) evt).state();
 			if (e == IdleState.ALL_IDLE) {
+				String clientID = (String) NettyUtils.getAttribute(ctx,
+						NettyChannel.ATTR_KEY_CLIENTID);
+				if (clientID != null && !clientID.isEmpty()) {
+					// if the channel was of a correctly connected client,
+					// inform
+					// messaging
+					// else it was of a not completed CONNECT message or
+					// sessionStolen
+					boolean stolen = false;
+					Boolean stolenAttr = (Boolean) NettyUtils.getAttribute(ctx,
+							NettyChannel.ATTR_KEY_SESSION_STOLEN);
+					if (stolenAttr != null && stolenAttr == Boolean.TRUE) {
+						stolen = stolenAttr;
+					}
+					processor.processConnectionLost(new LostConnectionEvent(
+							clientID, stolen));
+				}
 				// fire a channelInactive to trigger publish of Will
 				ctx.fireChannelInactive();
 				ctx.close();

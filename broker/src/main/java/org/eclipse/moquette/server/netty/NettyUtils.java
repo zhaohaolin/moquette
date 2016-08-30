@@ -49,6 +49,6 @@ public class NettyUtils {
 		channel.pipeline().addFirst("idleStateHandler",
 				new IdleStateHandler(0, 0, idleTime));
 		channel.pipeline().addAfter("idleStateHandler", "idleEventHandler",
-				new MoquetteIdleTimoutHandler());
+				new MoquetteIdleTimoutHandler(null));
 	}
 }

@@ -108,8 +108,6 @@ public class MQTTServer {
 			channelClass = NioServerSocketChannel.class;
 		}
 		
-		final NettyMQTTHandler mqttHandler = new NettyMQTTHandler(processor);
-		
 		ServerBootstrap b = new ServerBootstrap();
 		b.group(bossGroup, workerGroup);
 		b.channel(channelClass);
@@ -122,8 +120,6 @@ public class MQTTServer {
 		
 		b.childOption(ChannelOption.SO_KEEPALIVE, true);
 		b.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
-		
-		final MoquetteIdleTimoutHandler timeoutHandler = new MoquetteIdleTimoutHandler();
 		
 		// initalizer
 		b.childHandler(new ChannelInitializer<SocketChannel>() {
@@ -139,13 +135,13 @@ public class MQTTServer {
 				pipeline.addLast("logger", new LoggingHandler("Netty",
 						LogLevel.DEBUG));
 				
-				pipeline.addFirst("idleStateHandler", new IdleStateHandler(0,
-						0, Constants.DEFAULT_CONNECT_TIMEOUT));
-				pipeline.addAfter("idleStateHandler", "idleEventHandler",
-						timeoutHandler);
+				pipeline.addLast("idleStateHandler", new IdleStateHandler(0, 0,
+						Constants.DEFAULT_CONNECT_TIMEOUT, TimeUnit.SECONDS));
+				pipeline.addLast("idleEventHandler",
+						new MoquetteIdleTimoutHandler(processor));
 				
 				// bytemetrics
-				pipeline.addFirst("bytemetrics", new BytesMetricsHandler(
+				pipeline.addLast("bytemetrics", new BytesMetricsHandler(
 						bytesMetricsCollector));
 				
 				pipeline.addLast("decoder", new MQTTDecoder());
@@ -155,7 +151,7 @@ public class MQTTServer {
 				pipeline.addLast("metrics", new MessageMetricsHandler(
 						metricsCollector));
 				
-				pipeline.addLast("handler", mqttHandler);
+				pipeline.addLast("handler", new NettyMQTTHandler(processor));
 				// -------------------
 				// 靠近应用层
 				// -------------------
