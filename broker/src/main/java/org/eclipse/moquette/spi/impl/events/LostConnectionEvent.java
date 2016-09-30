@@ -24,13 +24,15 @@ public class LostConnectionEvent extends MessagingEvent {
 	
 	public final String		clientID;
 	public final boolean	sessionStolen;
+	public final String		channelId;
 	
-	public LostConnectionEvent(String clientID) {
-		this(clientID, false);
+	public LostConnectionEvent(String clientID, String channelId) {
+		this(clientID, false, channelId);
 	}
 	
-	public LostConnectionEvent(String clientID, boolean stolen) {
+	public LostConnectionEvent(String clientID, boolean stolen, String channelId) {
 		this.clientID = clientID;
 		this.sessionStolen = stolen;
+		this.channelId = channelId;
 	}
 }

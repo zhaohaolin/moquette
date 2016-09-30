@@ -27,12 +27,14 @@ public class ConnectionDescriptor {
 	private String			clientID;
 	private ServerChannel	session;
 	private boolean			cleanSession;
+	private String			channelId;
 	
 	public ConnectionDescriptor(String clientID, ServerChannel session,
-			boolean cleanSession) {
+			boolean cleanSession, String channelId) {
 		this.clientID = clientID;
 		this.session = session;
 		this.cleanSession = cleanSession;
+		this.channelId = channelId;
 	}
 	
 	public boolean isCleanSession() {
@@ -45,6 +47,10 @@ public class ConnectionDescriptor {
 	
 	public ServerChannel getSession() {
 		return session;
+	}
+	
+	public String getChannelId() {
+		return channelId;
 	}
 	
 	@Override

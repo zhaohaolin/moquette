@@ -19,6 +19,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
+
 import org.eclipse.moquette.server.Constants;
 import org.eclipse.moquette.server.ServerChannel;
 
@@ -48,16 +49,19 @@ public class NettyChannel implements ServerChannel {
 		this.ctx = ctx;
 	}
 	
+	@Override
 	public Object getAttribute(AttributeKey<Object> key) {
 		Attribute<Object> attr = ctx.attr(key);
 		return attr.get();
 	}
 	
+	@Override
 	public void setAttribute(AttributeKey<Object> key, Object value) {
 		Attribute<Object> attr = ctx.attr(key);
 		attr.set(value);
 	}
 	
+	@Override
 	public void setIdleTime(int idleTime) {
 		if (ctx.pipeline().names().contains("idleStateHandler")) {
 			ctx.pipeline().remove("idleStateHandler");
@@ -66,12 +70,19 @@ public class NettyChannel implements ServerChannel {
 				new IdleStateHandler(0, 0, idleTime));
 	}
 	
+	@Override
 	public void close(boolean immediately) {
 		ctx.close();
 	}
 	
+	@Override
 	public void write(Object value) {
 		ctx.writeAndFlush(value);
+	}
+	
+	@Override
+	public String channelId() {
+		return this.ctx.channel().id().asLongText();
 	}
 	
 	@Override

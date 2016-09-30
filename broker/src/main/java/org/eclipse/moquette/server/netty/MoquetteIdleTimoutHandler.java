@@ -54,8 +54,10 @@ public class MoquetteIdleTimoutHandler extends ChannelDuplexHandler {
 					if (stolenAttr != null && stolenAttr == Boolean.TRUE) {
 						stolen = stolenAttr;
 					}
+					
+					String channelId = ctx.channel().id().asLongText();
 					processor.processConnectionLost(new LostConnectionEvent(
-							clientID, stolen));
+							clientID, stolen, channelId));
 				}
 				// fire a channelInactive to trigger publish of Will
 				ctx.fireChannelInactive();

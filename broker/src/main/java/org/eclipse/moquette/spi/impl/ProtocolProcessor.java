@@ -210,7 +210,8 @@ public class ProtocolProcessor {
 		}
 		
 		ConnectionDescriptor connDescr = new ConnectionDescriptor(
-				msg.getClientID(), session, msg.isCleanSession());
+				msg.getClientID(), session, msg.isCleanSession(),
+				session.channelId());
 		clientIDs.put(msg.getClientID(), connDescr);
 		
 		int keepAlive = msg.getKeepAlive();
@@ -641,11 +642,17 @@ public class ProtocolProcessor {
 		String clientID = evt.clientID;
 		// If already removed a disconnect message was already processed for
 		// this clientID
-		if (evt.sessionStolen && clientIDs.remove(clientID) != null) {
-			// de-activate the subscriptions for this ClientID
-			subscriptions.deactivate(clientID);
-			LOG.info("Lost connection with client <{}>", clientID);
+		if (clientIDs.containsKey(clientID)) {
+			ConnectionDescriptor desc = clientIDs.get(clientID);
+			if (evt.sessionStolen && evt.channelId.equals(desc.getChannelId())) {
+				// remove clientID from clientIDs
+				clientIDs.remove(clientID);
+				// de-activate the subscriptions for this ClientID
+				subscriptions.deactivate(clientID);
+				LOG.info("Lost connection with client <{}>", clientID);
+			}
 		}
+		
 		// publish the Will message (if any) for the clientID
 		if (!evt.sessionStolen && willStore.containsKey(clientID)) {
 			WillMessage will = willStore.get(clientID);

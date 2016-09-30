@@ -135,8 +135,10 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 			if (stolenAttr != null && stolenAttr == Boolean.TRUE) {
 				stolen = stolenAttr;
 			}
+			
+			String channelId = ctx.channel().id().asLongText();
 			processor.processConnectionLost(new LostConnectionEvent(clientID,
-					stolen));
+					stolen, channelId));
 		}
 		ctx.close(/* false */);
 	}
@@ -165,8 +167,10 @@ public class NettyMQTTHandler extends ChannelInboundHandlerAdapter {
 			if (stolenAttr != null && stolenAttr == Boolean.TRUE) {
 				stolen = stolenAttr;
 			}
+			
+			String channelId = ctx.channel().id().asLongText();
 			processor.processConnectionLost(new LostConnectionEvent(clientID,
-					stolen));
+					stolen, channelId));
 		}
 		ctx.close();
 	}

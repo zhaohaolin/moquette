@@ -32,4 +32,7 @@ public interface ServerChannel {
 	void close(boolean immediately);
 	
 	void write(Object value);
+	
+	String channelId();
+	
 }
